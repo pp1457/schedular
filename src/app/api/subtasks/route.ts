@@ -1,20 +1,37 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
 export async function GET(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('project_id');
     if (projectId) {
+      // Check if project belongs to user
+      const project = await prisma.project.findUnique({
+        where: { id: projectId, userId: session.user.id },
+      });
+      if (!project) {
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      }
       const subtasks = await prisma.subtask.findMany({
         where: { projectId },
       });
       return NextResponse.json(subtasks);
     } else {
-      // Get all subtasks with project info
+      // Get all subtasks for user's projects
       const subtasks = await prisma.subtask.findMany({
+        where: {
+          project: { userId: session.user.id },
+        },
         include: { project: true },
       });
       return NextResponse.json(subtasks);
@@ -26,7 +43,21 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { projectId, description, date, duration, priority } = await request.json();
+
+    // Check if project belongs to user
+    const project = await prisma.project.findUnique({
+      where: { id: projectId, userId: session.user.id },
+    });
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
     const newSubtask = await prisma.subtask.create({
       data: {
         projectId,

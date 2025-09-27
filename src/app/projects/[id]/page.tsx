@@ -15,6 +15,8 @@ interface Subtask {
   id: string;
   description: string;
   done: boolean;
+  date: string | null;
+  duration: number | null;
 }
 
 interface Project {
@@ -202,17 +204,35 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
           <div>
             <h3 className="text-lg font-semibold mb-2">Subtasks</h3>
             <div className="space-y-2">
-              {project.subtasks.map(subtask => (
-                <div key={subtask.id} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={subtask.done}
-                    onChange={() => handleCheckboxChange(subtask.id, subtask.done)}
-                    className="w-4 h-4"
-                  />
-                  <span className={subtask.done ? 'line-through text-gray-500' : ''}>
-                    {subtask.description}
-                  </span>
+              {project.subtasks
+                .sort((a, b) => {
+                  // Sort by date first (null dates last), then by done status
+                  if (a.date && b.date) {
+                    return new Date(a.date).getTime() - new Date(b.date).getTime();
+                  }
+                  if (a.date && !b.date) return -1;
+                  if (!a.date && b.date) return 1;
+                  return a.done ? 1 : -1;
+                })
+                .map(subtask => (
+                <div key={subtask.id} className="flex items-center justify-between p-2 border border-gray-200 rounded">
+                  <div className="flex items-center space-x-2 flex-1">
+                    <input
+                      type="checkbox"
+                      checked={subtask.done}
+                      onChange={() => handleCheckboxChange(subtask.id, subtask.done)}
+                      className="w-4 h-4"
+                    />
+                    <span className={subtask.done ? 'line-through text-gray-500' : ''}>
+                      {subtask.description}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600 flex items-center space-x-4">
+                    {subtask.duration && <span>{subtask.duration} min</span>}
+                    <span>
+                      {subtask.date ? new Date(subtask.date).toLocaleDateString() : 'Not scheduled'}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -243,6 +263,33 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
           </form>
         </div>
       </div>
+
+      <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+        <DialogContent className="bg-white border-black">
+          <DialogHeader>
+            <DialogTitle>Schedule Results</DialogTitle>
+          </DialogHeader>
+          {scheduleMessage ? (
+            <p>{scheduleMessage}</p>
+          ) : scheduledSubtasks.length > 0 ? (
+            <div>
+              <p className="mb-4">The following subtasks have been scheduled:</p>
+              <div className="space-y-2">
+                {scheduledSubtasks.map(subtask => (
+                  <div key={subtask.id} className="flex justify-between">
+                    <span>{subtask.description}</span>
+                    <span className="text-sm text-gray-600">
+                      {new Date(subtask.date).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p>No subtasks were scheduled. This could be because all subtasks are already scheduled, or because you haven't set your availability yet. Please check your availability settings.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

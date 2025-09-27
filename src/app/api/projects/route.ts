@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
 export async function GET() {
   try {
-    const projects = await prisma.project.findMany({ include: { subtasks: true } });
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const projects = await prisma.project.findMany({
+      where: { userId: session.user.id },
+      include: { subtasks: true }
+    });
     return NextResponse.json(projects);
   } catch (error) {
     return NextResponse.json({ error: 'Error fetching projects' }, { status: 500 });
@@ -14,7 +24,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { title, description, category, deadline, priority, userId } = await request.json();
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { title, description, category, deadline, priority } = await request.json();
     const newProject = await prisma.project.create({
       data: {
         title,
@@ -22,7 +37,7 @@ export async function POST(request: Request) {
         category,
         deadline: deadline ? new Date(deadline) : null,
         priority,
-        userId, // Now optional
+        userId: session.user.id,
       },
     });
     return NextResponse.json(newProject, { status: 201 });

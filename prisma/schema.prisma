@@ -14,8 +14,49 @@ model User {
   id            String    @id @default(uuid())
   email         String    @unique
   password_hash String?
+  name          String?
+  emailVerified DateTime?
+  image         String?
   created_at    DateTime  @default(now())
+  accounts      Account[]
+  sessions      Session[]
   projects      Project[]
+  availability       UserAvailability[]
+  availabilityOverrides UserAvailabilityOverride[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model Project {
@@ -40,4 +81,24 @@ model Subtask {
   duration  Int?
   done      Boolean  @default(false)
   priority  Int      @default(2)
+}
+
+model UserAvailability {
+  id        String @id @default(uuid())
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  dayOfWeek Int    // 0=Sunday, 1=Monday, ..., 6=Saturday
+  hours     Float  // available hours
+
+  @@unique([userId, dayOfWeek])
+}
+
+model UserAvailabilityOverride {
+  id     String   @id @default(uuid())
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  date   DateTime @db.Date
+  hours  Float?   // null means unavailable, 0 means no time, positive means hours
+
+  @@unique([userId, date])
 }

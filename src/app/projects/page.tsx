@@ -59,9 +59,6 @@ export default function ProjectsPage() {
                   <p className="text-sm text-gray-600">
                     Deadline: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}
                   </p>
-                  <p className="text-sm text-gray-600">
-                    Progress: {total > 0 ? `${completed}/${total} (${progressPercentage}%)` : 'No subtasks'}
-                  </p>
                   <p className="text-sm text-gray-600">Priority: {getPriorityText(task.priority)}</p>
                   {task.category && (
                     <p className="text-sm text-gray-600">Category: {task.category}</p>

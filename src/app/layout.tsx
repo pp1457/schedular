@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Merriweather, Geist_Mono } from "next/font/google";
 import { Header } from "@/components/Header";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
 const merriweather = Merriweather({
@@ -29,8 +30,10 @@ export default function RootLayout({
       <body
         className={`${merriweather.variable} ${geistMono.variable} antialiased min-h-screen bg-white text-black`}
       >
-        <Header />
-        {children}
+        <Providers>
+          <Header />
+          {children}
+        </Providers>
       </body>
     </html>
   );
