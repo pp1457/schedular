@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -27,17 +27,20 @@ interface Project {
   subtasks: Subtask[];
 }
 
-export default function ProjectDetails({ params }: { params: { id: string } }) {
+export default function ProjectDetails({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const [project, setProject] = useState<Project | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [newSubtaskDescription, setNewSubtaskDescription] = useState('');
+  const [newSubtaskDuration, setNewSubtaskDuration] = useState('');
   const router = useRouter();
 
   useEffect(() => {
     fetchProject();
-  }, [params.id]);
+  }, [id]);
 
   const fetchProject = async () => {
-    const res = await fetch(`/api/projects/${params.id}`);
+    const res = await fetch(`/api/projects/${id}`);
     if (res.ok) {
       const data = await res.json();
       setProject(data);
@@ -61,7 +64,7 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
 
   const handleDelete = async () => {
     if (confirm('Are you sure you want to delete this task?')) {
-      const res = await fetch(`/api/projects/${params.id}`, {
+      const res = await fetch(`/api/projects/${id}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -74,7 +77,7 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
     const res = await fetch('/api/schedule', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project_id: params.id, available_hours_per_day: 8 }),
+      body: JSON.stringify({ project_id: id, available_hours_per_day: 8 }),
     });
     if (res.ok) {
       fetchProject();
@@ -82,7 +85,7 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
   };
 
   const handleUpdate = async (updatedProject: Omit<Project, 'id' | 'subtasks'>) => {
-    const res = await fetch(`/api/projects/${params.id}`, {
+    const res = await fetch(`/api/projects/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedProject),
@@ -90,6 +93,27 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
     if (res.ok) {
       fetchProject();
       setIsEditModalOpen(false);
+    }
+  };
+
+  const handleAddSubtask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubtaskDescription.trim()) return;
+
+    const res = await fetch('/api/subtasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        projectId: id, 
+        description: newSubtaskDescription,
+        duration: newSubtaskDuration ? parseFloat(newSubtaskDuration) : null
+      }),
+    });
+
+    if (res.ok) {
+      setNewSubtaskDescription('');
+      setNewSubtaskDuration('');
+      fetchProject();
     }
   };
 
@@ -193,6 +217,30 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
               </div>
             </div>
           )}
+
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold mb-2">Add Subtask</h3>
+            <form onSubmit={handleAddSubtask} className="flex space-x-2">
+              <Input
+                value={newSubtaskDescription}
+                onChange={(e) => setNewSubtaskDescription(e.target.value)}
+                placeholder="Enter subtask description"
+                className="flex-1 border-black"
+              />
+              <Input
+                type="number"
+                step="1"
+                min="0"
+                value={newSubtaskDuration}
+                onChange={(e) => setNewSubtaskDuration(e.target.value)}
+                placeholder="Minutes"
+                className="w-32 border-black"
+              />
+              <Button type="submit" className="bg-black text-white hover:bg-gray-800">
+                Add
+              </Button>
+            </form>
+          </div>
         </div>
       </main>
     </div>

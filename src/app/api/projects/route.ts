@@ -22,7 +22,7 @@ export async function POST(request: Request) {
         category,
         deadline: deadline ? new Date(deadline) : null,
         priority,
-        userId,
+        userId, // Now optional
       },
     });
     return NextResponse.json(newProject, { status: 201 });

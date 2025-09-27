@@ -49,7 +49,7 @@ export default function Home() {
       category: task.category,
       deadline: task.deadline,
       priority: task.priority,
-      userId: 'default',
+      // userId removed - now optional
     };
     const res = await fetch('/api/projects', {
       method: 'POST',
@@ -245,7 +245,7 @@ function TaskForm({ onSubmit }: { onSubmit: (task: Omit<Task, 'id' | 'subtasks'>
             />
             <Input
               type="number"
-              placeholder="Time (min)"
+              placeholder="Minute"
               value={sub.duration || ''}
               onChange={(e) => updateSubtask(index, 'duration', parseInt(e.target.value) || 0)}
               className="w-24 border-black"

@@ -22,7 +22,7 @@ interface Subtask {
 export default function Calendar() {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   useEffect(() => {
     fetchSubtasks();
@@ -69,7 +69,7 @@ export default function Calendar() {
 
   const getSubtasksForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return subtasks.filter(st => st.date === dateStr);
+    return subtasks.filter(st => st.date && st.date.split('T')[0] === dateStr);
   };
 
   const days = getDaysInMonth(currentDate);
@@ -123,7 +123,7 @@ export default function Calendar() {
             <div
               key={index}
               className={`min-h-[100px] border border-black p-2 ${day ? 'cursor-pointer hover:bg-gray-50' : ''}`}
-              onClick={() => day && setSelectedDate(day.toISOString().split('T')[0])}
+              onClick={() => day && setSelectedDate(day)}
             >
               {day && (
                 <>
@@ -161,11 +161,11 @@ export default function Calendar() {
           <DialogContent className="bg-white border-black max-w-md">
             <DialogHeader>
               <DialogTitle>
-                {selectedDate ? new Date(selectedDate).toLocaleDateString() : ''}
+                {selectedDate ? selectedDate.toLocaleDateString() : ''}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-2">
-              {selectedDate && getSubtasksForDate(new Date(selectedDate)).map(sub => (
+              {selectedDate && getSubtasksForDate(selectedDate).map(sub => (
                 <div key={sub.id} className="flex items-center space-x-2">
                   <input
                     type="checkbox"
@@ -178,7 +178,7 @@ export default function Calendar() {
                   </span>
                 </div>
               ))}
-              {selectedDate && getSubtasksForDate(new Date(selectedDate)).length === 0 && (
+              {selectedDate && getSubtasksForDate(selectedDate).length === 0 && (
                 <p className="text-gray-500">No tasks for this day.</p>
               )}
             </div>
