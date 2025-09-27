@@ -27,12 +27,19 @@ interface Project {
   subtasks: Subtask[];
 }
 
+interface ScheduledSubtask extends Subtask {
+  date: string;
+}
+
 export default function ProjectDetails({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [project, setProject] = useState<Project | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [newSubtaskDescription, setNewSubtaskDescription] = useState('');
   const [newSubtaskDuration, setNewSubtaskDuration] = useState('');
+  const [scheduledSubtasks, setScheduledSubtasks] = useState<ScheduledSubtask[]>([]);
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [scheduleMessage, setScheduleMessage] = useState<string>('');
   const router = useRouter();
 
   useEffect(() => {
@@ -80,7 +87,22 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
       body: JSON.stringify({ project_id: id, available_hours_per_day: 8 }),
     });
     if (res.ok) {
+      const result = await res.json();
       fetchProject();
+      
+      // Handle different response types
+      if (Array.isArray(result)) {
+        // Filter newly scheduled subtasks (those with dates)
+        const newlyScheduled = result.filter((st: any) => st.date);
+        setScheduledSubtasks(newlyScheduled);
+        setScheduleMessage('');
+        setIsScheduleDialogOpen(true);
+      } else if (result.message) {
+        // Show message for cases like "All subtasks are already scheduled"
+        setScheduledSubtasks([]);
+        setScheduleMessage(result.message);
+        setIsScheduleDialogOpen(true);
+      }
     }
   };
 
@@ -118,132 +140,110 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
   };
 
   if (!project) {
-    return <div className="min-h-screen bg-white text-black flex items-center justify-center">Loading...</div>;
+    return <main className="container mx-auto p-4 flex items-center justify-center min-h-[50vh]">Loading...</main>;
   }
 
   const completed = project.subtasks.filter(sub => sub.done).length;
   const total = project.subtasks.length;
 
   return (
-    <div className="min-h-screen bg-white text-black">
-      <header className="border-b border-black p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold font-merriweather">Task Details</h1>
-          <div className="flex space-x-4">
-            <Link href="/">
-              <Button variant="outline" className="border-black text-black hover:bg-gray-100">
-                <Home className="w-4 h-4 mr-2" />
-                Home
-              </Button>
-            </Link>
-            <Link href="/calendar">
-              <Button variant="outline" className="border-black text-black hover:bg-gray-100">
-                <Calendar className="w-4 h-4 mr-2" />
-                Calendar
-              </Button>
-            </Link>
+    <main className="container mx-auto p-4 max-w-2xl">
+      <div className="border border-black p-6 rounded-lg">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h2 className="text-3xl font-bold mb-2">{project.title}</h2>
+            {project.description && (
+              <p className="text-gray-600 mb-2">{project.description}</p>
+            )}
+          </div>
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm" onClick={handleSchedule} className="border-black text-black hover:bg-gray-100">
+              <Play className="w-4 h-4" />
+            </Button>
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="border-black text-black hover:bg-gray-100">
+                  <Edit className="w-4 h-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-white border-black">
+                <DialogHeader>
+                  <DialogTitle>Edit Task</DialogTitle>
+                </DialogHeader>
+                <EditForm project={project} onSubmit={handleUpdate} />
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" size="sm" onClick={handleDelete} className="border-black text-black hover:bg-gray-100">
+              <Trash2 className="w-4 h-4" />
+            </Button>
           </div>
         </div>
-      </header>
 
-      <main className="container mx-auto p-4 max-w-2xl">
-        <div className="border border-black p-6 rounded-lg">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h2 className="text-3xl font-bold mb-2">{project.title}</h2>
-              {project.description && (
-                <p className="text-gray-600 mb-2">{project.description}</p>
-              )}
-            </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" onClick={handleSchedule} className="border-black text-black hover:bg-gray-100">
-                <Play className="w-4 h-4" />
-              </Button>
-              <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="border-black text-black hover:bg-gray-100">
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-white border-black">
-                  <DialogHeader>
-                    <DialogTitle>Edit Task</DialogTitle>
-                  </DialogHeader>
-                  <EditForm project={project} onSubmit={handleUpdate} />
-                </DialogContent>
-              </Dialog>
-              <Button variant="outline" size="sm" onClick={handleDelete} className="border-black text-black hover:bg-gray-100">
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <p className="text-sm text-gray-600">Deadline</p>
+            <p>{project.deadline ? new Date(project.deadline).toLocaleDateString() : 'No deadline'}</p>
           </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <p className="text-sm text-gray-600">Deadline</p>
-              <p>{project.deadline ? new Date(project.deadline).toLocaleDateString() : 'No deadline'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Priority</p>
-              <p>{project.priority === 1 ? 'High' : project.priority === 2 ? 'Medium' : 'Low'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Category</p>
-              <p>{project.category || 'None'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Progress</p>
-              <p>{total > 0 ? `${completed}/${total} subtasks complete` : 'No subtasks'}</p>
-            </div>
+          <div>
+            <p className="text-sm text-gray-600">Priority</p>
+            <p>{project.priority === 1 ? 'High' : project.priority === 2 ? 'Medium' : 'Low'}</p>
           </div>
-
-          {project.subtasks.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Subtasks</h3>
-              <div className="space-y-2">
-                {project.subtasks.map(subtask => (
-                  <div key={subtask.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={subtask.done}
-                      onChange={() => handleCheckboxChange(subtask.id, subtask.done)}
-                      className="w-4 h-4"
-                    />
-                    <span className={subtask.done ? 'line-through text-gray-500' : ''}>
-                      {subtask.description}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-4">
-            <h3 className="text-lg font-semibold mb-2">Add Subtask</h3>
-            <form onSubmit={handleAddSubtask} className="flex space-x-2">
-              <Input
-                value={newSubtaskDescription}
-                onChange={(e) => setNewSubtaskDescription(e.target.value)}
-                placeholder="Enter subtask description"
-                className="flex-1 border-black"
-              />
-              <Input
-                type="number"
-                step="1"
-                min="0"
-                value={newSubtaskDuration}
-                onChange={(e) => setNewSubtaskDuration(e.target.value)}
-                placeholder="Minutes"
-                className="w-32 border-black"
-              />
-              <Button type="submit" className="bg-black text-white hover:bg-gray-800">
-                Add
-              </Button>
-            </form>
+          <div>
+            <p className="text-sm text-gray-600">Category</p>
+            <p>{project.category || 'None'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Progress</p>
+            <p>{total > 0 ? `${completed}/${total} subtasks complete` : 'No subtasks'}</p>
           </div>
         </div>
-      </main>
-    </div>
+
+        {project.subtasks.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Subtasks</h3>
+            <div className="space-y-2">
+              {project.subtasks.map(subtask => (
+                <div key={subtask.id} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={subtask.done}
+                    onChange={() => handleCheckboxChange(subtask.id, subtask.done)}
+                    className="w-4 h-4"
+                  />
+                  <span className={subtask.done ? 'line-through text-gray-500' : ''}>
+                    {subtask.description}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <h3 className="text-lg font-semibold mb-2">Add Subtask</h3>
+          <form onSubmit={handleAddSubtask} className="flex space-x-2">
+            <Input
+              value={newSubtaskDescription}
+              onChange={(e) => setNewSubtaskDescription(e.target.value)}
+              placeholder="Enter subtask description"
+              className="flex-1 border-black"
+            />
+            <Input
+              type="number"
+              step="1"
+              min="0"
+              value={newSubtaskDuration}
+              onChange={(e) => setNewSubtaskDuration(e.target.value)}
+              placeholder="Minutes"
+              className="w-32 border-black"
+            />
+            <Button type="submit" className="bg-black text-white hover:bg-gray-800">
+              Add
+            </Button>
+          </form>
+        </div>
+      </div>
+    </main>
   );
 }
 

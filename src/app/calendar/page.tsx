@@ -69,7 +69,14 @@ export default function Calendar() {
 
   const getSubtasksForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return subtasks.filter(st => st.date && st.date.split('T')[0] === dateStr);
+    return subtasks
+      .filter(st => st.date && st.date.split('T')[0] === dateStr)
+      .sort((a, b) => {
+        if (a.done !== b.done) {
+          return a.done ? 1 : -1; // unfinished first
+        }
+        return a.id.localeCompare(b.id); // maintain initial order by id
+      });
   };
 
   const days = getDaysInMonth(currentDate);
@@ -84,107 +91,93 @@ export default function Calendar() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-black">
-      <header className="border-b border-black p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold font-merriweather">Calendar</h1>
-          <Link href="/">
-            <Button variant="outline" className="border-black text-black hover:bg-gray-100">
-              <Home className="w-4 h-4 mr-2" />
-              Home
-            </Button>
-          </Link>
-        </div>
-      </header>
+    <main className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-4">
+        <Button variant="outline" onClick={prevMonth} className="border-black text-black hover:bg-gray-100">
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <h2 className="text-xl font-semibold">
+          {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+        </h2>
+        <Button variant="outline" onClick={nextMonth} className="border-black text-black hover:bg-gray-100">
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
 
-      <main className="container mx-auto p-4">
-        <div className="flex justify-between items-center mb-4">
-          <Button variant="outline" onClick={prevMonth} className="border-black text-black hover:bg-gray-100">
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <h2 className="text-xl font-semibold">
-            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </h2>
-          <Button variant="outline" onClick={nextMonth} className="border-black text-black hover:bg-gray-100">
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+          <div key={day} className="p-2 text-center font-semibold border border-black">
+            {day}
+          </div>
+        ))}
+      </div>
 
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="p-2 text-center font-semibold border border-black">
-              {day}
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((day, index) => (
-            <div
-              key={index}
-              className={`min-h-[100px] border border-black p-2 ${day ? 'cursor-pointer hover:bg-gray-50' : ''}`}
-              onClick={() => day && setSelectedDate(day)}
-            >
-              {day && (
-                <>
-                  <div className="font-semibold mb-1">{day.getDate()}</div>
-                  <div className="space-y-1">
-                    {getSubtasksForDate(day).slice(0, 3).map(sub => (
-                      <div key={sub.id} className="text-xs flex items-center space-x-1">
-                        <input
-                          type="checkbox"
-                          checked={sub.done}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleCheckboxChange(sub.id, sub.done);
-                          }}
-                          className="w-3 h-3"
-                        />
-                        <span className={`truncate ${sub.done ? 'line-through text-gray-500' : ''}`}>
-                          {sub.description}
-                        </span>
-                      </div>
-                    ))}
-                    {getSubtasksForDate(day).length > 3 && (
-                      <div className="text-xs text-gray-500">
-                        +{getSubtasksForDate(day).length - 3} more
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
-          <DialogContent className="bg-white border-black max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {selectedDate ? selectedDate.toLocaleDateString() : ''}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-2">
-              {selectedDate && getSubtasksForDate(selectedDate).map(sub => (
-                <div key={sub.id} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={sub.done}
-                    onChange={() => handleCheckboxChange(sub.id, sub.done)}
-                    className="w-4 h-4"
-                  />
-                  <span className={sub.done ? 'line-through text-gray-500' : ''}>
-                    {sub.description} ({sub.duration} min) - {sub.project.title}
-                  </span>
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((day, index) => (
+          <div
+            key={index}
+            className={`min-h-[100px] border border-black p-2 ${day ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+            onClick={() => day && setSelectedDate(day)}
+          >
+            {day && (
+              <>
+                <div className="font-semibold mb-1">{day.getDate()}</div>
+                <div className="space-y-1">
+                  {getSubtasksForDate(day).slice(0, 3).map(sub => (
+                    <div key={sub.id} className="text-xs flex items-center space-x-1">
+                      <input
+                        type="checkbox"
+                        checked={sub.done}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleCheckboxChange(sub.id, sub.done);
+                        }}
+                        className="w-3 h-3"
+                      />
+                      <span className={`truncate ${sub.done ? 'line-through text-gray-500' : ''}`}>
+                        {sub.description}
+                      </span>
+                    </div>
+                  ))}
+                  {getSubtasksForDate(day).length > 3 && (
+                    <div className="text-xs text-gray-500">
+                      +{getSubtasksForDate(day).length - 3} more
+                    </div>
+                  )}
                 </div>
-              ))}
-              {selectedDate && getSubtasksForDate(selectedDate).length === 0 && (
-                <p className="text-gray-500">No tasks for this day.</p>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </main>
-    </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
+        <DialogContent className="bg-white border-black max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedDate ? selectedDate.toLocaleDateString() : ''}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {selectedDate && getSubtasksForDate(selectedDate).map(sub => (
+              <div key={sub.id} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={sub.done}
+                  onChange={() => handleCheckboxChange(sub.id, sub.done)}
+                  className="w-4 h-4"
+                />
+                <span className={sub.done ? 'line-through text-gray-500' : ''}>
+                  {sub.description} ({sub.duration} min) - {sub.project.title}
+                </span>
+              </div>
+            ))}
+            {selectedDate && getSubtasksForDate(selectedDate).length === 0 && (
+              <p className="text-gray-500">No tasks for this day.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </main>
   );
 }

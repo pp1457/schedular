@@ -6,18 +6,18 @@ const prisma = new PrismaClient();
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const { description, date, duration, done, priority } = await request.json();
+    const body = await request.json();
+    const data: any = {};
+    if (body.description !== undefined) data.description = body.description;
+    if (body.date !== undefined) data.date = body.date ? new Date(body.date) : null;
+    if (body.duration !== undefined) data.duration = body.duration;
+    if (body.done !== undefined) data.done = body.done;
+    if (body.priority !== undefined) data.priority = body.priority;
     const updatedSubtask = await prisma.subtask.update({
       where: {
         id,
       },
-      data: {
-        description,
-        date: date ? new Date(date) : null,
-        duration,
-        done,
-        priority,
-      },
+      data,
     });
     return NextResponse.json(updatedSubtask);
   } catch (error) {
