@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 interface Subtask {
   id: string;
-  title: string;
+  description: string;
   done: boolean;
 }
 
@@ -83,7 +83,7 @@ export default function DailyTasks({ params }: { params: Promise<{ date: string 
                 onChange={() => handleCheckboxChange(subtask.id, subtask.done)}
                 className="mr-2"
               />
-              <span className={subtask.done ? 'line-through' : ''}>{subtask.title}</span>
+              <span className={subtask.done ? 'line-through' : ''}>{subtask.description}</span>
             </div>
           ))}
         </div>

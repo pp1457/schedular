@@ -4,20 +4,21 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const projectId = searchParams.get('project_id');
-
-  if (!projectId) {
-    return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
-  }
-
   try {
-    const subtasks = await prisma.subtask.findMany({
-      where: {
-        projectId: projectId,
-      },
-    });
-    return NextResponse.json(subtasks);
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get('project_id');
+    if (projectId) {
+      const subtasks = await prisma.subtask.findMany({
+        where: { projectId },
+      });
+      return NextResponse.json(subtasks);
+    } else {
+      // Get all subtasks with project info
+      const subtasks = await prisma.subtask.findMany({
+        include: { project: true },
+      });
+      return NextResponse.json(subtasks);
+    }
   } catch (error) {
     return NextResponse.json({ error: 'Error fetching subtasks' }, { status: 500 });
   }
@@ -25,13 +26,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { title, duration, priority, projectId } = await request.json();
+    const { projectId, description, date, duration, priority } = await request.json();
     const newSubtask = await prisma.subtask.create({
       data: {
-        title,
+        projectId,
+        description,
+        date: date ? new Date(date) : null,
         duration,
         priority,
-        projectId,
       },
     });
     return NextResponse.json(newSubtask, { status: 201 });

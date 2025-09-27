@@ -1,27 +1,31 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Calendar } from 'lucide-react';
 
 interface Subtask {
   id: string;
   description: string;
-  estimatedTime: number;
+  date: string | null;
+  duration: number | null;
   done: boolean;
+  priority: number;
 }
 
 interface Task {
   id: string;
   title: string;
   description?: string;
-  deadline?: string;
+  category: string | null;
+  deadline: string | null;
+  priority: number;
   subtasks: Subtask[];
-  priority: 'Low' | 'Medium' | 'High';
 }
 
 export default function Home() {
@@ -29,35 +33,47 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    const storedTasks = localStorage.getItem('tasks');
-    if (storedTasks) {
-      setTasks(JSON.parse(storedTasks));
-    }
+    fetchTasks();
   }, []);
 
-  const saveTasks = (newTasks: Task[]) => {
-    setTasks(newTasks);
-    localStorage.setItem('tasks', JSON.stringify(newTasks));
+  const fetchTasks = async () => {
+    const res = await fetch('/api/projects');
+    const data = await res.json();
+    setTasks(data);
   };
 
-  const addTask = (task: Omit<Task, 'id'>) => {
-    const newTask: Task = { ...task, id: Date.now().toString() };
-    saveTasks([...tasks, newTask]);
-    setIsModalOpen(false);
-  };
-
-  const toggleSubtask = (taskId: string, subtaskId: string) => {
-    const newTasks = tasks.map(task =>
-      task.id === taskId
-        ? {
-            ...task,
-            subtasks: task.subtasks.map(sub =>
-              sub.id === subtaskId ? { ...sub, done: !sub.done } : sub
-            )
-          }
-        : task
-    );
-    saveTasks(newTasks);
+  const addTask = async (task: Omit<Task, 'id' | 'subtasks'> & { subtasks: Omit<Subtask, 'id' | 'done'>[] }) => {
+    const projectData = {
+      title: task.title,
+      description: task.description,
+      category: task.category,
+      deadline: task.deadline,
+      priority: task.priority,
+      userId: 'default',
+    };
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(projectData),
+    });
+    if (res.ok) {
+      const newProject = await res.json();
+      // Create subtasks
+      for (const sub of task.subtasks) {
+        await fetch('/api/subtasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: newProject.id,
+            description: sub.description,
+            duration: sub.duration,
+            priority: sub.priority,
+          }),
+        });
+      }
+      fetchTasks();
+      setIsModalOpen(false);
+    }
   };
 
   const getPriorityText = (priority: number) => {
@@ -71,20 +87,28 @@ export default function Home() {
       <header className="border-b border-black p-4">
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold font-merriweather">Task Scheduler</h1>
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogTrigger asChild>
+          <div className="flex space-x-4">
+            <Link href="/calendar">
               <Button variant="outline" className="border-black text-black hover:bg-gray-100">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Task
+                <Calendar className="w-4 h-4 mr-2" />
+                Calendar
               </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-white border-black">
-              <DialogHeader>
-                <DialogTitle>Add New Task</DialogTitle>
-              </DialogHeader>
-              <TaskForm onSubmit={addTask} />
-            </DialogContent>
-          </Dialog>
+            </Link>
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="border-black text-black hover:bg-gray-100">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-white border-black">
+                <DialogHeader>
+                  <DialogTitle>Add New Task</DialogTitle>
+                </DialogHeader>
+                <TaskForm onSubmit={addTask} />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
 
@@ -94,36 +118,20 @@ export default function Home() {
             const completed = task.subtasks.filter(sub => sub.done).length;
             const total = task.subtasks.length;
             return (
-              <div key={task.id} className="border border-black p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                <h2 className="text-xl font-semibold mb-2">{task.title}</h2>
-                {task.deadline && (
-                  <p className="text-sm text-gray-600 mb-1">
-                    Deadline: {new Date(task.deadline).toLocaleDateString()}
+              <Link key={task.id} href={`/projects/${task.id}`}>
+                <div className="border border-black p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                  <h2 className="text-xl font-semibold mb-2">{task.title}</h2>
+                  {task.deadline && (
+                    <p className="text-sm text-gray-600 mb-1">
+                      Deadline: {new Date(task.deadline).toLocaleDateString()}
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-600 mb-2">
+                    Progress: {total > 0 ? `${completed}/${total} subtasks complete` : 'No subtasks'}
                   </p>
-                )}
-                <p className="text-sm text-gray-600 mb-2">
-                  Progress: {total > 0 ? `${completed}/${total} subtasks complete` : 'No subtasks'}
-                </p>
-                <p className="text-sm text-gray-600 mb-4">Priority: {task.priority}</p>
-                {task.subtasks.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="font-medium">Subtasks:</h3>
-                    {task.subtasks.map((sub) => (
-                      <div key={sub.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={sub.done}
-                          onChange={() => toggleSubtask(task.id, sub.id)}
-                          className="w-4 h-4"
-                        />
-                        <span className={sub.done ? 'line-through text-gray-500' : ''}>
-                          {sub.description} ({sub.estimatedTime} min)
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                  <p className="text-sm text-gray-600 mb-4">Priority: {getPriorityText(task.priority)}</p>
+                </div>
+              </Link>
             );
           })}
         </div>
@@ -132,18 +140,19 @@ export default function Home() {
   );
 }
 
-function TaskForm({ onSubmit }: { onSubmit: (task: Omit<Task, 'id'>) => void }) {
+function TaskForm({ onSubmit }: { onSubmit: (task: Omit<Task, 'id' | 'subtasks'> & { subtasks: Omit<Subtask, 'id' | 'done'>[] }) => void }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
   const [deadline, setDeadline] = useState('');
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
   const [subtasks, setSubtasks] = useState<Omit<Subtask, 'id' | 'done'>[]>([]);
 
   const addSubtask = () => {
-    setSubtasks([...subtasks, { description: '', estimatedTime: 0 }]);
+    setSubtasks([...subtasks, { description: '', duration: 0, date: null, priority: 2 }]);
   };
 
-  const updateSubtask = (index: number, field: keyof Omit<Subtask, 'id' | 'done'>, value: string | number) => {
+  const updateSubtask = (index: number, field: keyof Omit<Subtask, 'id' | 'done'>, value: string | number | null) => {
     const newSubtasks = [...subtasks];
     newSubtasks[index] = { ...newSubtasks[index], [field]: value };
     setSubtasks(newSubtasks);
@@ -153,22 +162,23 @@ function TaskForm({ onSubmit }: { onSubmit: (task: Omit<Task, 'id'>) => void }) 
     setSubtasks(subtasks.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    const taskSubtasks: Subtask[] = subtasks
-      .filter(sub => sub.description.trim())
-      .map(sub => ({ ...sub, id: Date.now().toString() + Math.random(), done: false }));
-    onSubmit({
+    const taskSubtasks = subtasks
+      .filter(sub => sub.description.trim());
+    await onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
-      deadline: deadline || undefined,
+      category: category.trim() || null,
+      deadline: deadline || null,
+      priority: priority === 'High' ? 1 : priority === 'Low' ? 3 : 2,
       subtasks: taskSubtasks,
-      priority,
     });
     // Reset form
     setTitle('');
     setDescription('');
+    setCategory('');
     setDeadline('');
     setPriority('Medium');
     setSubtasks([]);
@@ -190,6 +200,14 @@ function TaskForm({ onSubmit }: { onSubmit: (task: Omit<Task, 'id'>) => void }) 
         <Textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          className="border-black"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Category</label>
+        <Input
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
           className="border-black"
         />
       </div>
@@ -228,8 +246,8 @@ function TaskForm({ onSubmit }: { onSubmit: (task: Omit<Task, 'id'>) => void }) 
             <Input
               type="number"
               placeholder="Time (min)"
-              value={sub.estimatedTime || ''}
-              onChange={(e) => updateSubtask(index, 'estimatedTime', parseInt(e.target.value) || 0)}
+              value={sub.duration || ''}
+              onChange={(e) => updateSubtask(index, 'duration', parseInt(e.target.value) || 0)}
               className="w-24 border-black"
             />
             <Button type="button" variant="outline" size="icon" onClick={() => removeSubtask(index)} className="border-black">

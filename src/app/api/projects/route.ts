@@ -14,10 +14,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { title, category, deadline, priority, userId } = await request.json();
+    const { title, description, category, deadline, priority, userId } = await request.json();
     const newProject = await prisma.project.create({
       data: {
         title,
+        description,
         category,
         deadline: deadline ? new Date(deadline) : null,
         priority,

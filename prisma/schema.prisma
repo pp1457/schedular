@@ -23,6 +23,7 @@ model Project {
   user       User      @relation(fields: [userId], references: [id])
   userId     String
   title      String
+  description String?
   category   String?
   deadline   DateTime? @db.Date
   priority   Int       @default(2)
@@ -34,7 +35,7 @@ model Subtask {
   id        String   @id @default(uuid())
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId String
-  title     String
+  description String
   date      DateTime? @db.Date
   duration  Int?
   done      Boolean  @default(false)

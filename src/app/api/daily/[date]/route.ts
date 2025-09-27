@@ -3,9 +3,9 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function GET(request: Request, { params }: { params: { date: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ date: string }> }) {
   try {
-    const { date } = params;
+    const { date } = await params;
     const tasks = await prisma.subtask.findMany({
       where: {
         date: new Date(date),

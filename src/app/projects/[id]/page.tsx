@@ -4,16 +4,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Edit, Trash2, Home, Calendar, Play } from 'lucide-react';
 
 interface Subtask {
   id: string;
-  title: string;
+  description: string;
   done: boolean;
 }
 
 interface Project {
   id: string;
   title: string;
+  description?: string;
   category: string | null;
   deadline: string | null;
   priority: number;
@@ -22,21 +29,24 @@ interface Project {
 
 export default function ProjectDetails({ params }: { params: { id: string } }) {
   const [project, setProject] = useState<Project | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    const fetchProject = async () => {
-      const res = await fetch(`/api/projects/${params.id}`);
-      const data = await res.json();
-      setProject(data);
-    };
-
     fetchProject();
   }, [params.id]);
 
+  const fetchProject = async () => {
+    const res = await fetch(`/api/projects/${params.id}`);
+    if (res.ok) {
+      const data = await res.json();
+      setProject(data);
+    }
+  };
+
   const handleCheckboxChange = async (subtaskId: string, done: boolean) => {
     const res = await fetch(`/api/subtasks/${subtaskId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ done: !done }),
     });
@@ -49,42 +59,216 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleDelete = async () => {
+    if (confirm('Are you sure you want to delete this task?')) {
+      const res = await fetch(`/api/projects/${params.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        router.push('/');
+      }
+    }
+  };
+
+  const handleSchedule = async () => {
+    const res = await fetch('/api/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_id: params.id, available_hours_per_day: 8 }),
+    });
+    if (res.ok) {
+      fetchProject();
+    }
+  };
+
+  const handleUpdate = async (updatedProject: Omit<Project, 'id' | 'subtasks'>) => {
+    const res = await fetch(`/api/projects/${params.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedProject),
+    });
+    if (res.ok) {
+      fetchProject();
+      setIsEditModalOpen(false);
+    }
+  };
+
   if (!project) {
-    return <div>Loading...</div>;
+    return <div className="min-h-screen bg-white text-black flex items-center justify-center">Loading...</div>;
   }
 
+  const completed = project.subtasks.filter(sub => sub.done).length;
+  const total = project.subtasks.length;
+
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">{project.title}</h1>
-        <div>
-          <Link href="/" className="text-blue-500 hover:underline mr-4">
-            Home
-          </Link>
-          <button onClick={() => router.back()} className="text-blue-500 hover:underline">
-            Back
-          </button>
-        </div>
-      </div>
-
-      <p>Category: {project.category}</p>
-      <p>Deadline: {project.deadline ? new Date(project.deadline).toLocaleDateString() : 'N/A'}</p>
-      <p>Priority: {project.priority}</p>
-
-      <h3 className="text-lg font-semibold mt-4">Subtasks</h3>
-      <div>
-        {project.subtasks.map(subtask => (
-          <div key={subtask.id} className="flex items-center mb-2">
-            <input
-              type="checkbox"
-              checked={subtask.done}
-              onChange={() => handleCheckboxChange(subtask.id, subtask.done)}
-              className="mr-2"
-            />
-            <span className={subtask.done ? 'line-through' : ''}>{subtask.title}</span>
+    <div className="min-h-screen bg-white text-black">
+      <header className="border-b border-black p-4">
+        <div className="container mx-auto flex justify-between items-center">
+          <h1 className="text-2xl font-bold font-merriweather">Task Details</h1>
+          <div className="flex space-x-4">
+            <Link href="/">
+              <Button variant="outline" className="border-black text-black hover:bg-gray-100">
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Button>
+            </Link>
+            <Link href="/calendar">
+              <Button variant="outline" className="border-black text-black hover:bg-gray-100">
+                <Calendar className="w-4 h-4 mr-2" />
+                Calendar
+              </Button>
+            </Link>
           </div>
-        ))}
-      </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto p-4 max-w-2xl">
+        <div className="border border-black p-6 rounded-lg">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h2 className="text-3xl font-bold mb-2">{project.title}</h2>
+              {project.description && (
+                <p className="text-gray-600 mb-2">{project.description}</p>
+              )}
+            </div>
+            <div className="flex space-x-2">
+              <Button variant="outline" size="sm" onClick={handleSchedule} className="border-black text-black hover:bg-gray-100">
+                <Play className="w-4 h-4" />
+              </Button>
+              <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="border-black text-black hover:bg-gray-100">
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-white border-black">
+                  <DialogHeader>
+                    <DialogTitle>Edit Task</DialogTitle>
+                  </DialogHeader>
+                  <EditForm project={project} onSubmit={handleUpdate} />
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" size="sm" onClick={handleDelete} className="border-black text-black hover:bg-gray-100">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <p className="text-sm text-gray-600">Deadline</p>
+              <p>{project.deadline ? new Date(project.deadline).toLocaleDateString() : 'No deadline'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Priority</p>
+              <p>{project.priority === 1 ? 'High' : project.priority === 2 ? 'Medium' : 'Low'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Category</p>
+              <p>{project.category || 'None'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Progress</p>
+              <p>{total > 0 ? `${completed}/${total} subtasks complete` : 'No subtasks'}</p>
+            </div>
+          </div>
+
+          {project.subtasks.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Subtasks</h3>
+              <div className="space-y-2">
+                {project.subtasks.map(subtask => (
+                  <div key={subtask.id} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={subtask.done}
+                      onChange={() => handleCheckboxChange(subtask.id, subtask.done)}
+                      className="w-4 h-4"
+                    />
+                    <span className={subtask.done ? 'line-through text-gray-500' : ''}>
+                      {subtask.description}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
+  );
+}
+
+function EditForm({ project, onSubmit }: { project: Project; onSubmit: (project: Omit<Project, 'id' | 'subtasks'>) => void }) {
+  const [title, setTitle] = useState(project.title);
+  const [description, setDescription] = useState(project.description || '');
+  const [category, setCategory] = useState(project.category || '');
+  const [deadline, setDeadline] = useState(project.deadline ? project.deadline.split('T')[0] : '');
+  const [priority, setPriority] = useState(project.priority === 1 ? 'High' : project.priority === 2 ? 'Medium' : 'Low');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      title,
+      description: description || undefined,
+      category: category || null,
+      deadline: deadline || null,
+      priority: priority === 'High' ? 1 : priority === 'Low' ? 3 : 2,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium mb-1">Task Title *</label>
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          className="border-black"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Description</label>
+        <Textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="border-black"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Category</label>
+        <Input
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="border-black"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Deadline</label>
+        <Input
+          type="date"
+          value={deadline}
+          onChange={(e) => setDeadline(e.target.value)}
+          className="border-black"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Priority</label>
+        <Select value={priority} onValueChange={(value: 'Low' | 'Medium' | 'High') => setPriority(value)}>
+          <SelectTrigger className="border-black">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Low">Low</SelectItem>
+            <SelectItem value="Medium">Medium</SelectItem>
+            <SelectItem value="High">High</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Button type="submit" className="w-full bg-black text-white hover:bg-gray-800">
+        Update Task
+      </Button>
+    </form>
   );
 }

@@ -3,16 +3,16 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
-    const { title, date, duration, done, priority } = await request.json();
+    const { id } = await params;
+    const { description, date, duration, done, priority } = await request.json();
     const updatedSubtask = await prisma.subtask.update({
       where: {
         id,
       },
       data: {
-        title,
+        description,
         date: date ? new Date(date) : null,
         duration,
         done,
@@ -25,9 +25,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await prisma.subtask.delete({
       where: {
         id,
