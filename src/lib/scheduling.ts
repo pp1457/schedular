@@ -28,6 +28,29 @@ export async function scheduleSubtasks({
   useSpacing,
   dailyUsedMinutes
 }: SchedulingParams): Promise<SchedulingResult> {
+  // Adjust startDate to tomorrow if it's today or in the past
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (startDate < today) {
+    startDate = new Date(today);
+    startDate.setDate(startDate.getDate() + 1);
+  }
+
+  // Sort subtasks by their existing scheduled dates to respect order
+  subtasks.sort((a, b) => {
+    let aMinDate = Infinity;
+    if (Array.isArray(a.scheduledDates) && a.scheduledDates.length > 0) {
+      const dates = a.scheduledDates as Array<{date: string, duration: number}>;
+      aMinDate = Math.min(...dates.map(d => new Date(d.date).getTime()));
+    }
+    let bMinDate = Infinity;
+    if (Array.isArray(b.scheduledDates) && b.scheduledDates.length > 0) {
+      const dates = b.scheduledDates as Array<{date: string, duration: number}>;
+      bMinDate = Math.min(...dates.map(d => new Date(d.date).getTime()));
+    }
+    return aMinDate - bMinDate;
+  });
+
   // Get availability
   const availability = await prisma.userAvailability.findMany({
     where: { userId },
