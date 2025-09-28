@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -18,7 +17,7 @@ export async function GET() {
       orderBy: { dayOfWeek: 'asc' },
     });
     return createSecureResponse(availability);
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return createErrorResponse('Error fetching availability');
   }
 }
@@ -44,12 +43,12 @@ export async function POST(request: Request) {
       hours: a.hours,
     }));
 
-    const created = await prisma.userAvailability.createMany({
+    await prisma.userAvailability.createMany({
       data,
     });
 
     return createSecureResponse({ message: 'Availability updated' });
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return createErrorResponse('Error updating availability');
   }
 }

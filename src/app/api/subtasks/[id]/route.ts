@@ -14,7 +14,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { id } = await params;
     const body = await request.json();
-    const data: any = {};
+    const data: {
+      description?: string;
+      date?: Date | null;
+      duration?: number;
+      done?: boolean;
+      priority?: number;
+    } = {};
     if (body.description !== undefined) data.description = body.description;
     if (body.date !== undefined) data.date = body.date ? new Date(body.date) : null;
     if (body.duration !== undefined) data.duration = body.duration;
@@ -35,7 +41,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       data,
     });
     return NextResponse.json(updatedSubtask);
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error updating subtask' }, { status: 500 });
   }
 }
@@ -62,7 +68,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       where: { id },
     });
     return new NextResponse(null, { status: 204 });
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error deleting subtask' }, { status: 500 });
   }
 }

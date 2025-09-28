@@ -21,7 +21,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
     return NextResponse.json(project);
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error fetching project' }, { status: 500 });
   }
 }
@@ -39,13 +39,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       where: { id, userId: session.user.id },
       data: {
         title,
+        description,
         category,
         deadline: deadline ? new Date(deadline) : null,
         priority,
       },
     });
     return NextResponse.json(updatedProject);
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error updating project' }, { status: 500 });
   }
 }
@@ -65,7 +66,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       },
     });
     return new NextResponse(null, { status: 204 });
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error deleting project' }, { status: 500 });
   }
 }

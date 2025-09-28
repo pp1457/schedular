@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(updatedSubtasks);
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error scheduling subtasks' }, { status: 500 });
   }
 }

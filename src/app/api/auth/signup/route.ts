@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { checkRateLimit, addSecurityHeaders, sanitizeInput, isValidEmail, isValidPassword } from '@/lib/security';
 
 const prisma = new PrismaClient();
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     // Rate limiting
-    const req = request as any; // Type assertion for rate limiting
-    if (!checkRateLimit(req, 5, 15 * 60 * 1000)) { // 5 requests per 15 minutes
+    if (!checkRateLimit(request, 5, 15 * 60 * 1000)) { // 5 requests per 15 minutes
       return addSecurityHeaders(NextResponse.json({ error: 'Too many requests' }, { status: 429 }));
     }
 

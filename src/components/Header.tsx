@@ -14,7 +14,19 @@ function Header() {
   const { data: session } = useSession();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const addTask = async (task: any) => {
+  const addTask = async (task: {
+    title: string;
+    description?: string;
+    category: string | null;
+    deadline: string | null;
+    priority: number;
+    subtasks: Array<{
+      description: string;
+      date: string | null;
+      duration: number | null;
+      priority: number;
+    }>;
+  }) => {
     const projectData = {
       title: task.title,
       description: task.description,

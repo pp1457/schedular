@@ -17,7 +17,7 @@ export async function GET() {
       include: { subtasks: true }
     });
     return NextResponse.json(projects);
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error fetching projects' }, { status: 500 });
   }
 }
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       },
     });
     return NextResponse.json(newProject, { status: 201 });
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error creating project' }, { status: 500 });
   }
 }

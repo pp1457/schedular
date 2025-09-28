@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Calendar, Home } from 'lucide-react';
 
 interface Task {
   id: string;
@@ -27,7 +25,20 @@ export default function ProjectsPage() {
 
   const fetchTasks = async () => {
     const res = await fetch('/api/projects');
+    if (!res.ok) {
+      if (res.status === 401) {
+        // Redirect to sign in if unauthorized
+        window.location.href = '/auth/signin';
+        return;
+      }
+      console.error('Failed to fetch projects:', await res.text());
+      return;
+    }
     const data = await res.json();
+    if (!Array.isArray(data)) {
+      console.error('Expected array of projects, got:', data);
+      return;
+    }
     // Sort tasks by deadline (earliest first, then tasks without deadlines)
     const sortedData = data.sort((a: Task, b: Task) => {
       if (!a.deadline && !b.deadline) return 0;

@@ -17,7 +17,7 @@ export async function GET() {
       orderBy: { date: 'asc' },
     });
     return NextResponse.json(overrides);
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error fetching overrides' }, { status: 500 });
   }
 }
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(override);
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error updating override' }, { status: 500 });
   }
 }
@@ -72,7 +72,7 @@ export async function DELETE(request: Request) {
     });
 
     return NextResponse.json({ message: 'Override deleted' });
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error deleting override' }, { status: 500 });
   }
 }

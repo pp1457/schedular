@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ message: 'Re-scheduled all tasks' });
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error re-scheduling' }, { status: 500 });
   }
 }

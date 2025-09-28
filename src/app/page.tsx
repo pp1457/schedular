@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Calendar } from 'lucide-react';
 
 interface Subtask {
   id: string;
@@ -29,6 +27,10 @@ export default function Home() {
 
   const fetchSubtasks = async () => {
     const res = await fetch('/api/subtasks');
+    if (!res.ok) {
+      console.error('Failed to fetch subtasks:', await res.text());
+      return;
+    }
     const subtasks: Subtask[] = await res.json();
     
     // Group subtasks by date
@@ -51,18 +53,14 @@ export default function Home() {
         if (grouped[dateStr]) {
           grouped[dateStr].push(subtask);
         }
-      } else {
-        // For subtasks without date, put in a special key
-        if (!grouped['no-date']) grouped['no-date'] = [];
-        grouped['no-date'].push(subtask);
       }
+      // Skip subtasks without dates - they are not scheduled
     });
     
     setSubtasksByDate(grouped);
   };
 
   const formatDate = (dateStr: string) => {
-    if (dateStr === 'no-date') return 'No Date';
     const date = new Date(dateStr);
     const month = date.getMonth() + 1;
     const day = date.getDate();
@@ -87,8 +85,6 @@ export default function Home() {
             return subtasks.length > 0 || dateStr === todayStr;
           })
           .sort(([a], [b]) => {
-            if (a === 'no-date') return 1;
-            if (b === 'no-date') return -1;
             const today = (() => {
               const d = new Date();
               return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

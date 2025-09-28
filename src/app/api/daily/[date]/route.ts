@@ -20,7 +20,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ date
       },
     });
     return NextResponse.json(tasks);
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error fetching tasks' }, { status: 500 });
   }
 }

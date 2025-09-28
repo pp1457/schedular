@@ -37,7 +37,7 @@ export function addSecurityHeaders(response: NextResponse) {
 }
 
 // Create secure response
-export function createSecureResponse(data: any, status = 200) {
+export function createSecureResponse(data: unknown, status = 200) {
   const response = NextResponse.json(data, { status });
   return addSecurityHeaders(response);
 }

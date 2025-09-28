@@ -26,7 +26,7 @@ export default function DailyTasks({ params }: { params: Promise<{ date: string 
         if (!res.ok) throw new Error('Network response was not ok');
         const data = await res.json();
         setSubtasks(data);
-      } catch (err) {
+      } catch (_err) { // eslint-disable-line @typescript-eslint/no-unused-vars
         setSubtasks([]);
         // Optionally log or handle error
       }

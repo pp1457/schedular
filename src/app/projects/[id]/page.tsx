@@ -1,15 +1,14 @@
 
 'use client';
 
-import { useState, useEffect, use } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Edit, Trash2, Home, Calendar, Play } from 'lucide-react';
+import { Edit, Trash2, Play } from 'lucide-react';
 
 interface Subtask {
   id: string;
@@ -44,17 +43,17 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
   const [scheduleMessage, setScheduleMessage] = useState<string>('');
   const router = useRouter();
 
-  useEffect(() => {
-    fetchProject();
-  }, [id]);
-
-  const fetchProject = async () => {
+  const fetchProject = useCallback(async () => {
     const res = await fetch(`/api/projects/${id}`);
     if (res.ok) {
       const data = await res.json();
       setProject(data);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchProject();
+  }, [fetchProject]);
 
   const handleCheckboxChange = async (subtaskId: string, done: boolean) => {
     const res = await fetch(`/api/subtasks/${subtaskId}`, {
@@ -95,7 +94,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
       // Handle different response types
       if (Array.isArray(result)) {
         // Filter newly scheduled subtasks (those with dates)
-        const newlyScheduled = result.filter((st: any) => st.date);
+        const newlyScheduled = result.filter((st: Subtask) => st.date);
         setScheduledSubtasks(newlyScheduled);
         setScheduleMessage('');
         setIsScheduleDialogOpen(true);
@@ -286,7 +285,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
               </div>
             </div>
           ) : (
-            <p>No subtasks were scheduled. This could be because all subtasks are already scheduled, or because you haven't set your availability yet. Please check your availability settings.</p>
+            <p>No subtasks were scheduled. This could be because all subtasks are already scheduled, or because you haven&apos;t set your availability yet. Please check your availability settings.</p>
           )}
         </DialogContent>
       </Dialog>

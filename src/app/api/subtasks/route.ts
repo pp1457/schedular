@@ -36,7 +36,7 @@ export async function GET(request: Request) {
       });
       return NextResponse.json(subtasks);
     }
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error fetching subtasks' }, { status: 500 });
   }
 }
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       },
     });
     return NextResponse.json(newSubtask, { status: 201 });
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error creating subtask' }, { status: 500 });
   }
 }
