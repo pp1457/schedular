@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useTaskContext } from '@/contexts/TaskContext';
+import { Loader2 } from 'lucide-react';
 
 interface Task {
   id: string;
@@ -22,82 +23,88 @@ interface Task {
 export default function AllTasksPage() {
   const [activeTasks, setActiveTasks] = useState<Task[]>([]);
   const [doneTasksByMonth, setDoneTasksByMonth] = useState<Record<string, Task[]>>({});
+  const [isLoading, setIsLoading] = useState(true);
   const { refetchTrigger } = useTaskContext();
 
   const fetchTasks = useCallback(async () => {
-    const res = await fetch('/api/projects');
-    if (!res.ok) {
-      if (res.status === 401) {
-        // Redirect to sign in if unauthorized
-        window.location.href = '/auth/signin';
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/projects');
+      if (!res.ok) {
+        if (res.status === 401) {
+          // Redirect to sign in if unauthorized
+          window.location.href = '/auth/signin';
+          return;
+        }
+        console.error('Failed to fetch projects:', await res.text());
         return;
       }
-      console.error('Failed to fetch projects:', await res.text());
-      return;
-    }
-    const data = await res.json();
-    if (!Array.isArray(data)) {
-      console.error('Expected array of projects, got:', data);
-      return;
-    }
-    
-    // Separate active and done tasks
-    const active = data.filter((task: Task) => {
-      const total = task.subtasks.length;
-      const completed = task.subtasks.filter(sub => sub.done).length;
-      return completed < total; // Not all subtasks done
-    });
-    const done = data.filter((task: Task) => {
-      const total = task.subtasks.length;
-      const completed = task.subtasks.filter(sub => sub.done).length;
-      return total > 0 && completed === total; // All subtasks done
-    });
-    
-    // Sort active by deadline (earliest first, null last)
-    active.sort((a: Task, b: Task) => {
-      if (!a.deadline && !b.deadline) return 0;
-      if (!a.deadline) return 1;
-      if (!b.deadline) return -1;
-      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-    });
-    setActiveTasks(active);
-    
-    // Group done by month
-    const groupedDone: Record<string, Task[]> = {};
-    done.forEach((task: Task) => {
-      let monthKey = 'No Deadline';
-      if (task.deadline) {
-        const deadline = new Date(task.deadline);
-        monthKey = `${deadline.toLocaleString('default', { month: 'long' })} ${deadline.getFullYear()}`;
+      const data = await res.json();
+      if (!Array.isArray(data)) {
+        console.error('Expected array of projects, got:', data);
+        return;
       }
-      if (!groupedDone[monthKey]) {
-        groupedDone[monthKey] = [];
-      }
-      groupedDone[monthKey].push(task);
-    });
-    
-    // Sort months chronologically, with "No Deadline" last
-    const sortedMonths = Object.keys(groupedDone).sort((a, b) => {
-      if (a === 'No Deadline') return 1;
-      if (b === 'No Deadline') return -1;
-      const aDate = new Date(a);
-      const bDate = new Date(b);
-      return aDate.getTime() - bDate.getTime();
-    });
-    
-    const sortedGroupedDone: Record<string, Task[]> = {};
-    sortedMonths.forEach(month => {
-      // Sort tasks within month by deadline
-      groupedDone[month].sort((a: Task, b: Task) => {
+      
+      // Separate active and done tasks
+      const active = data.filter((task: Task) => {
+        const total = task.subtasks.length;
+        const completed = task.subtasks.filter(sub => sub.done).length;
+        return completed < total; // Not all subtasks done
+      });
+      const done = data.filter((task: Task) => {
+        const total = task.subtasks.length;
+        const completed = task.subtasks.filter(sub => sub.done).length;
+        return total > 0 && completed === total; // All subtasks done
+      });
+      
+      // Sort active by deadline (earliest first, null last)
+      active.sort((a: Task, b: Task) => {
         if (!a.deadline && !b.deadline) return 0;
         if (!a.deadline) return 1;
         if (!b.deadline) return -1;
         return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
       });
-      sortedGroupedDone[month] = groupedDone[month];
-    });
-    
-    setDoneTasksByMonth(sortedGroupedDone);
+      setActiveTasks(active);
+      
+      // Group done by month
+      const groupedDone: Record<string, Task[]> = {};
+      done.forEach((task: Task) => {
+        let monthKey = 'No Deadline';
+        if (task.deadline) {
+          const deadline = new Date(task.deadline);
+          monthKey = `${deadline.toLocaleString('default', { month: 'long' })} ${deadline.getFullYear()}`;
+        }
+        if (!groupedDone[monthKey]) {
+          groupedDone[monthKey] = [];
+        }
+        groupedDone[monthKey].push(task);
+      });
+      
+      // Sort months chronologically, with "No Deadline" last
+      const sortedMonths = Object.keys(groupedDone).sort((a, b) => {
+        if (a === 'No Deadline') return 1;
+        if (b === 'No Deadline') return -1;
+        const aDate = new Date(a);
+        const bDate = new Date(b);
+        return aDate.getTime() - bDate.getTime();
+      });
+      
+      const sortedGroupedDone: Record<string, Task[]> = {};
+      sortedMonths.forEach(month => {
+        // Sort tasks within month by deadline
+        groupedDone[month].sort((a: Task, b: Task) => {
+          if (!a.deadline && !b.deadline) return 0;
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        });
+        sortedGroupedDone[month] = groupedDone[month];
+      });
+      
+      setDoneTasksByMonth(sortedGroupedDone);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -189,41 +196,48 @@ export default function AllTasksPage() {
   return (
     <main className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">All Tasks</h1>
-      <div className="space-y-6">
-        {/* Active Tasks */}
-        <div className="border border-black rounded-lg p-4">
-          <h2 className="text-xl font-semibold mb-4">Active Tasks</h2>
-          {activeTasks.length === 0 ? (
-            <p className="text-gray-600 italic">No active tasks.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {activeTasks.map(renderTask)}
-            </div>
-          )}
+      {isLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin" />
+          <span className="ml-2">Loading tasks...</span>
         </div>
-        
-        {/* Split Line */}
-        <hr className="border-t-2 border-gray-300" />
-        
-        {/* Done Tasks */}
-        <div className="border border-black rounded-lg p-4">
-          <h2 className="text-xl font-semibold mb-4">Completed Tasks Archive</h2>
-          {Object.keys(doneTasksByMonth).length === 0 ? (
-            <p className="text-gray-600 italic">No completed tasks.</p>
-          ) : (
-            <div className="space-y-6">
-              {Object.entries(doneTasksByMonth).map(([month, tasks]) => (
-                <div key={month}>
-                  <h3 className="text-lg font-medium mb-2">{month}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pl-4 border-l-2 border-gray-200">
-                    {tasks.map(renderTask)}
+      ) : (
+        <div className="space-y-6">
+          {/* Active Tasks */}
+          <div className="border border-black rounded-lg p-4">
+            <h2 className="text-xl font-semibold mb-4">Active Tasks</h2>
+            {activeTasks.length === 0 ? (
+              <p className="text-gray-600 italic">No active tasks.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activeTasks.map(renderTask)}
+              </div>
+            )}
+          </div>
+          
+          {/* Split Line */}
+          <hr className="border-t-2 border-gray-300" />
+          
+          {/* Done Tasks */}
+          <div className="border border-black rounded-lg p-4">
+            <h2 className="text-xl font-semibold mb-4">Completed Tasks Archive</h2>
+            {Object.keys(doneTasksByMonth).length === 0 ? (
+              <p className="text-gray-600 italic">No completed tasks.</p>
+            ) : (
+              <div className="space-y-6">
+                {Object.entries(doneTasksByMonth).map(([month, tasks]) => (
+                  <div key={month}>
+                    <h3 className="text-lg font-medium mb-2">{month}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pl-4 border-l-2 border-gray-200">
+                      {tasks.map(renderTask)}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </main>
   );
 }

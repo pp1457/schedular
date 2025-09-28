@@ -3,18 +3,20 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { TaskForm } from "@/components/TaskForm";
-import { Plus, Home, Calendar, List, Settings, LogOut } from "lucide-react";
+import { Plus, Home, Calendar, List, Settings, LogOut, Loader2 } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { useAuth } from "@/lib/useAuth";
 
 function Header() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { isLoading, isAuthenticated } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const { triggerRefetch } = useTaskContext();
 
   const addTask = async (task: {
@@ -32,7 +34,7 @@ function Header() {
     }>;
   }) => {
     setIsCreatingTask(true);
-    
+
     try {
       const projectData = {
         title: task.title,
@@ -54,7 +56,7 @@ function Header() {
       }
       const newProject = await res.json();
       console.log('Project created:', newProject);
-      
+
       // Create subtasks
       console.log('Creating subtasks:', task.subtasks);
       const subtasksToCreate = task.subtasks.length > 0 ? task.subtasks : [{
@@ -63,7 +65,7 @@ function Header() {
         duration: 30,
         priority: task.priority,
       }];
-      
+
       for (const sub of subtasksToCreate) {
         console.log('Creating subtask:', sub);
         const subRes = await fetch('/api/subtasks', {
@@ -85,10 +87,10 @@ function Header() {
         }
         console.log('Subtask creation response:', subRes.status, await subRes.text());
       }
-      
+
       // Trigger refetch for All Tasks page
       triggerRefetch();
-      
+
       setIsDialogOpen(false);
       router.push('/projects');
     } finally {
@@ -96,7 +98,28 @@ function Header() {
     }
   };
 
-  if (!session) {
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut({ callbackUrl: '/auth/signin' });
+    } catch (error) {
+      console.error('Sign out error:', error);
+      setIsSigningOut(false);
+    }
+  };
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <header className="border-b border-black p-4">
+        <div className="container mx-auto flex justify-center items-center">
+          <Loader2 className="w-6 h-6 animate-spin" />
+        </div>
+      </header>
+    );
+  }
+
+  if (!isAuthenticated) {
     return (
       <header className="border-b border-black p-4">
         <div className="container mx-auto flex justify-between items-center">
@@ -164,14 +187,42 @@ function Header() {
               <TaskForm onSubmit={addTask} />
             </DialogContent>
           </Dialog>
-          <Button
-            variant="outline"
-            className="border-black text-black hover:bg-gray-100"
-            onClick={() => signOut()}
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="border-black text-black hover:bg-gray-100"
+                disabled={isSigningOut}
+              >
+                {isSigningOut ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <LogOut className="w-4 h-4 mr-2" />
+                )}
+                {isSigningOut ? 'Signing out...' : 'Sign Out'}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Sign Out</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to sign out? You&apos;ll need to sign in again to access your tasks.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex gap-2">
+                <Button variant="outline" onClick={() => {}}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                >
+                  {isSigningOut ? 'Signing out...' : 'Sign Out'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </header>

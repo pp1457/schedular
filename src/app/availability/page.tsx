@@ -118,7 +118,7 @@ export default function Availability() {
     if (override) return override.hours;
     const dayOfWeek = date.getDay();
     const avail = availability.find(a => a.dayOfWeek === dayOfWeek);
-    return avail ? avail.hours : 0;
+    return avail ? avail.hours : 8;
   };
 
   const days = getDaysInMonth(currentDate);
@@ -148,7 +148,7 @@ export default function Availability() {
                 type="number"
                 step="0.5"
                 min="0"
-                value={availability.find(a => a.dayOfWeek === index)?.hours || 0}
+                value={availability.find(a => a.dayOfWeek === index)?.hours || 8}
                 onChange={(e) => {
                   const hours = Math.max(0, parseFloat(e.target.value) || 0);
                   setAvailability(prev => {
