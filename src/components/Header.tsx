@@ -74,7 +74,7 @@ function Header() {
     return (
       <header className="border-b border-black p-4">
         <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold font-merriweather">Scheduler</h1>
+          <h1 className="text-2xl font-bold font-merriweather">Schedular</h1>
           <div className="flex space-x-4">
             <Link href="/auth/signin">
               <Button variant="outline" className="border-black text-black hover:bg-gray-100">
@@ -95,7 +95,7 @@ function Header() {
   return (
     <header className="border-b border-black p-4">
       <div className="container mx-auto flex justify-between items-center">
-        <h1 className="text-2xl font-bold font-merriweather">Scheduler</h1>
+        <h1 className="text-2xl font-bold font-merriweather">Schedular</h1>
         <div className="flex space-x-4">
           <Link href="/">
             <Button variant="outline" className="border-black text-black hover:bg-gray-100">
