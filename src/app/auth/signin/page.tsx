@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +10,9 @@ import { Input } from '@/components/ui/input';
 function SignInForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
 
@@ -25,15 +25,15 @@ function SignInForm() {
       const result = await signIn('credentials', {
         email,
         password,
-        redirect: false,
+        rememberMe,
+        redirect: true,
+        callbackUrl,
       });
 
       if (result?.error) {
         setError('Invalid email or password');
-      } else if (result?.ok) {
-        router.push(callbackUrl);
-        router.refresh(); // Refresh to update session state
       }
+      // No need for manual redirect, NextAuth handles it
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       console.error('Sign in error:', err);
@@ -89,6 +89,21 @@ function SignInForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
               />
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                Remember me
+              </label>
             </div>
           </div>
           {error && (
