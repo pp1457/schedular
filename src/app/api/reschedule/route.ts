@@ -5,12 +5,16 @@ import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { start_date } = await request.json();
+    const startDate = start_date ? new Date(start_date) : new Date();
+    startDate.setHours(0, 0, 0, 0);
 
     // Get all projects for the user
     const projects = await prisma.project.findMany({
@@ -18,13 +22,11 @@ export async function POST() {
       include: { subtasks: true },
     });
 
-    // Unschedule all future subtasks
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Unschedule all subtasks from start_date onwards
     await prisma.subtask.updateMany({
       where: {
         project: { userId: session.user.id },
-        date: { gte: today },
+        date: { gte: startDate },
       },
       data: { date: null },
     });
@@ -79,7 +81,7 @@ export async function POST() {
           return hours * 60;
         };
 
-        const currentDate = new Date();
+        const currentDate = new Date(startDate);
         const dailyUsedMinutes: { [date: string]: number } = {};
 
         for (const subtask of unscheduledSubtasks) {

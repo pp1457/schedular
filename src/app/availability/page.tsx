@@ -55,8 +55,13 @@ export default function Availability() {
     });
     if (res.ok) {
       alert('Availability updated');
-      // Re-schedule
-      await fetch('/api/reschedule', { method: 'POST' });
+      // Re-schedule from today
+      const today = new Date().toISOString().split('T')[0];
+      await fetch('/api/reschedule', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ start_date: today })
+      });
     }
   };
 
@@ -72,8 +77,12 @@ export default function Availability() {
       fetchOverrides();
       setSelectedDate(null);
       setSelectedHours('');
-      // Re-schedule
-      await fetch('/api/reschedule', { method: 'POST' });
+      // Re-schedule from the modified date
+      await fetch('/api/reschedule', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ start_date: selectedDate.toISOString().split('T')[0] })
+      });
     }
   };
 
@@ -85,8 +94,12 @@ export default function Availability() {
     });
     if (res.ok) {
       fetchOverrides();
-      // Re-schedule
-      await fetch('/api/reschedule', { method: 'POST' });
+      // Re-schedule from the deleted date
+      await fetch('/api/reschedule', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ start_date: date })
+      });
     }
   };
 
@@ -134,15 +147,15 @@ export default function Availability() {
   };
 
   return (
-    <main className="container mx-auto p-6 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-8 text-center">Availability Settings</h1>
+    <main className="container mx-auto p-4 md:p-6 max-w-4xl">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8 text-center">Availability Settings</h1>
 
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">Default Hours per Day</h2>
-        <div className="grid grid-cols-7 gap-4">
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mb-6 md:mb-8">
+        <h2 className="text-lg md:text-xl font-semibold mb-4">Default Hours per Day</h2>
+        <div className="grid grid-cols-7 gap-2 md:gap-4">
           {dayNames.map((day, index) => (
             <div key={day} className="text-center">
-              <label htmlFor={`day-${index}`} className="block text-sm font-medium mb-2">{day}</label>
+              <label htmlFor={`day-${index}`} className="block text-xs md:text-sm font-medium mb-1 md:mb-2">{day}</label>
               <Input
                 id={`day-${index}`}
                 type="number"
@@ -160,22 +173,22 @@ export default function Availability() {
                     }
                   });
                 }}
-                className="w-full"
+                className="w-full text-sm md:text-base"
               />
             </div>
           ))}
         </div>
-        <div className="mt-6 text-center">
-          <Button onClick={updateAvailability} className="px-8">Save Defaults</Button>
+        <div className="mt-4 md:mt-6 text-center">
+          <Button onClick={updateAvailability} className="px-6 md:px-8 w-full md:w-auto">Save Defaults</Button>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-center mb-6">
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+        <div className="flex justify-between items-center mb-4 md:mb-6">
           <Button variant="outline" size="sm" onClick={prevMonth}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <h2 className="text-xl font-semibold">
+          <h2 className="text-lg md:text-xl font-semibold">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h2>
           <Button variant="outline" size="sm" onClick={nextMonth}>
@@ -183,19 +196,19 @@ export default function Availability() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-7 gap-2 mb-4">
+        <div className="grid grid-cols-7 gap-1 md:gap-2 mb-4">
           {dayNames.map(day => (
-            <div key={day} className="p-3 text-center font-semibold text-gray-700 bg-gray-50 rounded-md">
+            <div key={day} className="p-2 md:p-3 text-center font-semibold text-gray-700 bg-gray-50 rounded-md text-sm md:text-base">
               {day}
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1 md:gap-2">
           {days.map((day, index) => (
             <div
               key={index}
-              className={`min-h-[80px] border rounded-md p-3 transition-colors ${
+              className={`min-h-[60px] md:min-h-[80px] border rounded-md p-2 md:p-3 transition-colors text-sm md:text-base ${
                 day
                   ? `cursor-pointer hover:shadow-md ${
                       getOverrideForDate(day)
@@ -210,8 +223,8 @@ export default function Availability() {
             >
               {day && (
                 <>
-                  <div className="font-semibold text-lg mb-1">{day.getDate()}</div>
-                  <div className="text-sm text-gray-600">
+                  <div className="font-semibold text-base md:text-lg mb-1">{day.getDate()}</div>
+                  <div className="text-xs md:text-sm text-gray-600">
                     {(getAvailabilityForDate(day) || 0)}h
                   </div>
                 </>
@@ -222,9 +235,9 @@ export default function Availability() {
       </div>
 
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-[90vw] md:max-w-md">
           <DialogHeader>
-            <DialogTitle>Set availability for {selectedDate?.toLocaleDateString()}</DialogTitle>
+            <DialogTitle className="text-base md:text-lg">Set availability for {selectedDate?.toLocaleDateString()}</DialogTitle>
             <DialogDescription>
               Set custom availability hours for this specific date.
             </DialogDescription>
@@ -240,14 +253,15 @@ export default function Availability() {
                 value={selectedHours}
                 onChange={(e) => setSelectedHours(e.target.value)}
                 placeholder={`Default: ${selectedDate ? getAvailabilityForDate(selectedDate) : ''}`}
+                className="text-base"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedDate(null)}>Cancel</Button>
-            <Button onClick={updateOverride}>Save</Button>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setSelectedDate(null)} className="w-full sm:w-auto">Cancel</Button>
+            <Button onClick={updateOverride} className="w-full sm:w-auto">Save</Button>
             {selectedDate && getOverrideForDate(selectedDate) && (
-              <Button variant="destructive" onClick={() => deleteOverride(selectedDate.toISOString().split('T')[0])}>
+              <Button variant="destructive" onClick={() => deleteOverride(selectedDate.toISOString().split('T')[0])} className="w-full sm:w-auto">
                 Delete Override
               </Button>
             )}

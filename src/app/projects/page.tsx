@@ -161,25 +161,25 @@ export default function AllTasksPage() {
     const schedulingStatus = getSchedulingStatus(task);
     return (
       <Link key={task.id} href={`/projects/${task.id}`}>
-        <div className="border border-black p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer h-56 flex flex-col">
-          <h2 className="text-xl font-semibold mb-2 min-h-[3rem] flex items-center">{task.title}</h2>
-          <div className="flex-1 space-y-2">
-            <p className="text-sm text-gray-600">
+        <div className="border border-black p-4 md:p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer h-auto md:h-56 flex flex-col">
+          <h2 className="text-lg md:text-xl font-semibold mb-2 min-h-[2rem] md:min-h-[3rem] flex items-center">{task.title}</h2>
+          <div className="flex-1 space-y-2 md:space-y-3">
+            <p className="text-sm md:text-base text-gray-600">
               Deadline: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}
             </p>
-            <p className="text-sm text-gray-600">Priority: {getPriorityText(task.priority)}</p>
+            <p className="text-sm md:text-base text-gray-600">Priority: {getPriorityText(task.priority)}</p>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Status:</span>
+              <span className="text-xs md:text-sm text-gray-600">Status:</span>
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(schedulingStatus)}`}>
                 {schedulingStatus}
               </span>
             </div>
             {task.description && (
-              <p className="text-sm text-gray-600 truncate">Description: {task.description}</p>
+              <p className="text-xs md:text-sm text-gray-600 truncate">Description: {task.description}</p>
             )}
           </div>
           {total > 0 && (
-            <div className="mt-2">
+            <div className="mt-3 md:mt-2">
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
                   className="bg-black h-2 rounded-full transition-all duration-300" 
@@ -194,22 +194,22 @@ export default function AllTasksPage() {
   };
 
   return (
-    <main className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">All Tasks</h1>
+    <main className="container mx-auto p-4 md:p-6">
+      <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6">All Tasks</h1>
       {isLoading ? (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin" />
-          <span className="ml-2">Loading tasks...</span>
+        <div className="flex justify-center items-center py-8 md:py-12">
+          <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin" />
+          <span className="ml-2 text-sm md:text-base">Loading tasks...</span>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Active Tasks */}
-          <div className="border border-black rounded-lg p-4">
-            <h2 className="text-xl font-semibold mb-4">Active Tasks</h2>
+          <div className="border border-black rounded-lg p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-semibold mb-4">Active Tasks</h2>
             {activeTasks.length === 0 ? (
-              <p className="text-gray-600 italic">No active tasks.</p>
+              <p className="text-gray-600 italic text-sm md:text-base">No active tasks.</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {activeTasks.map(renderTask)}
               </div>
             )}
@@ -219,16 +219,16 @@ export default function AllTasksPage() {
           <hr className="border-t-2 border-gray-300" />
           
           {/* Done Tasks */}
-          <div className="border border-black rounded-lg p-4">
-            <h2 className="text-xl font-semibold mb-4">Completed Tasks Archive</h2>
+          <div className="border border-black rounded-lg p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-semibold mb-4">Completed Tasks Archive</h2>
             {Object.keys(doneTasksByMonth).length === 0 ? (
-              <p className="text-gray-600 italic">No completed tasks.</p>
+              <p className="text-gray-600 italic text-sm md:text-base">No completed tasks.</p>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 {Object.entries(doneTasksByMonth).map(([month, tasks]) => (
                   <div key={month}>
-                    <h3 className="text-lg font-medium mb-2">{month}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pl-4 border-l-2 border-gray-200">
+                    <h3 className="text-base md:text-lg font-medium mb-2">{month}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 pl-2 md:pl-4 border-l-2 border-gray-200">
                       {tasks.map(renderTask)}
                     </div>
                   </div>

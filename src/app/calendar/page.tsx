@@ -112,7 +112,7 @@ export default function Calendar() {
 
       <div className="grid grid-cols-7 gap-1 mb-2">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-          <div key={day} className="p-2 text-center font-semibold border border-black">
+          <div key={day} className="p-2 text-center font-semibold border border-black text-sm md:text-base">
             {day}
           </div>
         ))}
@@ -122,14 +122,14 @@ export default function Calendar() {
         {days.map((day, index) => (
           <div
             key={index}
-            className={`min-h-[100px] border border-black p-2 ${day ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+            className={`min-h-[80px] md:min-h-[100px] border border-black p-1 md:p-2 ${day ? 'cursor-pointer hover:bg-gray-50' : ''}`}
             onClick={() => day && setSelectedDate(day)}
           >
             {day && (
               <>
-                <div className="font-semibold mb-1">{day.getDate()}</div>
+                <div className="font-semibold text-sm md:text-base mb-1">{day.getDate()}</div>
                 <div className="space-y-1">
-                  {getSubtasksForDate(day).slice(0, 3).map(sub => (
+                  {getSubtasksForDate(day).slice(0, 2).map(sub => (
                     <div key={sub.id} className="text-xs flex items-center space-x-1">
                       <input
                         type="checkbox"
@@ -138,20 +138,20 @@ export default function Calendar() {
                           e.stopPropagation();
                           handleCheckboxChange(sub.id, sub.done);
                         }}
-                        className="w-3 h-3"
+                        className="w-3 h-3 flex-shrink-0"
                       />
                       <Link
                         href={`/projects/${sub.project.id}`}
-                        className={`truncate hover:underline ${sub.done ? 'line-through text-gray-500' : ''}`}
+                        className={`truncate text-xs hover:underline ${sub.done ? 'line-through text-gray-500' : ''}`}
                         onClick={(e) => e.stopPropagation()}
                       >
                         {sub.description}
                       </Link>
                     </div>
                   ))}
-                  {getSubtasksForDate(day).length > 3 && (
+                  {getSubtasksForDate(day).length > 2 && (
                     <div className="text-xs text-gray-500">
-                      +{getSubtasksForDate(day).length - 3} more
+                      +{getSubtasksForDate(day).length - 2} more
                     </div>
                   )}
                 </div>
@@ -162,7 +162,7 @@ export default function Calendar() {
       </div>
 
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
-        <DialogContent className="bg-white border-black max-w-md">
+        <DialogContent className="bg-white border-black max-w-[90vw] md:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {selectedDate ? selectedDate.toLocaleDateString() : ''}
@@ -171,22 +171,22 @@ export default function Calendar() {
               View and manage tasks scheduled for this date.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-60 overflow-y-auto">
             {selectedDate && getSubtasksForDate(selectedDate).map(sub => (
-              <div key={sub.id} className="flex items-center space-x-2">
+              <div key={sub.id} className="flex items-center space-x-2 p-2 border rounded">
                 <input
                   type="checkbox"
                   checked={sub.done}
                   onChange={() => handleCheckboxChange(sub.id, sub.done)}
-                  className="w-4 h-4"
+                  className="w-4 h-4 flex-shrink-0"
                 />
-                <Link href={`/projects/${sub.project.id}`} className={`hover:underline ${sub.done ? 'line-through text-gray-500' : ''}`}>
+                <Link href={`/projects/${sub.project.id}`} className={`hover:underline flex-1 text-sm ${sub.done ? 'line-through text-gray-500' : ''}`}>
                   {sub.description} ({sub.duration} min) - {sub.project.title}
                 </Link>
               </div>
             ))}
             {selectedDate && getSubtasksForDate(selectedDate).length === 0 && (
-              <p className="text-gray-500">No tasks for this day.</p>
+              <p className="text-gray-500 text-center py-4">No tasks for this day.</p>
             )}
           </div>
         </DialogContent>

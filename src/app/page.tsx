@@ -75,8 +75,8 @@ export default function Home() {
   };
 
   return (
-    <main className="container mx-auto p-4">
-      <div className="space-y-6">
+    <main className="container mx-auto p-4 md:p-6">
+      <div className="space-y-4 md:space-y-6">
         {Object.entries(subtasksByDate)
           .filter(([dateStr, subtasks]) => {
             const todayStr = (() => {
@@ -101,12 +101,12 @@ export default function Home() {
             })();
             const isToday = dateStr === todayStr;
             return (
-            <div key={dateStr} className="border border-black rounded-lg p-4">
-              <h2 className={`text-xl font-semibold mb-4 ${isToday ? 'font-bold' : ''}`}>{formatDate(dateStr)}{isToday ? ' - Today' : ''}</h2>
+            <div key={dateStr} className="border border-black rounded-lg p-4 md:p-6">
+              <h2 className={`text-lg md:text-xl font-semibold mb-4 ${isToday ? 'font-bold' : ''}`}>{formatDate(dateStr)}{isToday ? ' - Today' : ''}</h2>
               {subtasks.length === 0 ? (
-                <p className="text-gray-600 italic">Hooray! No tasks scheduled for today.</p>
+                <p className="text-gray-600 italic text-sm md:text-base">Hooray! No tasks scheduled for today.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3 md:space-y-2">
                   {subtasks
                     .sort((a, b) => {
                       // First sort by done status (undone first)
@@ -123,15 +123,15 @@ export default function Home() {
                       return a.priority - b.priority;
                     })
                     .map((subtask) => (
-                    <div key={subtask.id} className={`flex items-center justify-between p-2 border border-gray-200 rounded ${subtask.done ? 'bg-gray-50' : 'bg-white'}`}>
-                      <div className="flex-1">
-                        <p className={`font-medium ${subtask.done ? 'line-through text-gray-500' : 'text-gray-900'}`}>{subtask.description}</p>
-                        <p className="text-sm text-gray-600">
+                    <div key={subtask.id} className={`flex items-center justify-between p-3 md:p-2 border border-gray-200 rounded ${subtask.done ? 'bg-gray-50' : 'bg-white'}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium text-sm md:text-base ${subtask.done ? 'line-through text-gray-500' : 'text-gray-900'}`}>{subtask.description}</p>
+                        <p className="text-xs md:text-sm text-gray-600">
                           From: <Link href={`/projects/${subtask.project.id}`} className="text-gray-900 border-b border-gray-400 hover:border-gray-600 hover:text-black">
                             {subtask.project.title}
                           </Link>
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-xs md:text-sm text-gray-600">
                           Priority: {getPriorityText(subtask.priority)}
                           {subtask.duration != null && ` • ${subtask.duration} min`}
                         </p>
@@ -147,7 +147,7 @@ export default function Home() {
                           });
                           fetchSubtasks(); // Refresh data
                         }}
-                        className="ml-4 w-6 h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                        className="ml-3 md:ml-4 w-5 h-5 md:w-6 md:h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
                       />
                     </div>
                   ))}

@@ -7,7 +7,7 @@ import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { TaskForm } from "@/components/TaskForm";
-import { Plus, Home, Calendar, List, Settings, LogOut, Loader2 } from "lucide-react";
+import { Plus, Home, Calendar, List, Settings, LogOut, Loader2, Menu, X } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useAuth } from "@/lib/useAuth";
 
@@ -17,6 +17,7 @@ function Header() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { triggerRefetch } = useTaskContext();
 
   const addTask = async (task: {
@@ -124,14 +125,14 @@ function Header() {
       <header className="border-b border-black p-4">
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold font-merriweather">Schedular</h1>
-          <div className="flex space-x-4">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
             <Link href="/auth/signin">
-              <Button variant="outline" className="border-black text-black hover:bg-gray-100">
+              <Button variant="outline" className="border-black text-black hover:bg-gray-100 w-full sm:w-auto">
                 Sign In
               </Button>
             </Link>
             <Link href="/auth/signup">
-              <Button className="bg-black text-white hover:bg-gray-800">
+              <Button className="bg-black text-white hover:bg-gray-800 w-full sm:w-auto">
                 Sign Up
               </Button>
             </Link>
@@ -145,7 +146,9 @@ function Header() {
     <header className="border-b border-black p-4">
       <div className="container mx-auto flex justify-between items-center">
         <h1 className="text-2xl font-bold font-merriweather">Schedular</h1>
-        <div className="flex space-x-4">
+        
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex space-x-4">
           <Link href="/">
             <Button variant="outline" className="border-black text-black hover:bg-gray-100">
               <Home className="w-4 h-4 mr-2" />
@@ -224,7 +227,104 @@ function Header() {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Mobile Menu Button */}
+        <div className="md:hidden">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="border-black text-black hover:bg-gray-100"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </Button>
+        </div>
       </div>
+
+      {/* Mobile Navigation Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-black bg-white">
+          <div className="container mx-auto py-4 space-y-2">
+            <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button variant="outline" className="w-full justify-start border-black text-black hover:bg-gray-100">
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Button>
+            </Link>
+            <Link href="/calendar" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button variant="outline" className="w-full justify-start border-black text-black hover:bg-gray-100">
+                <Calendar className="w-4 h-4 mr-2" />
+                Calendar
+              </Button>
+            </Link>
+            <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button variant="outline" className="w-full justify-start border-black text-black hover:bg-gray-100">
+                <List className="w-4 h-4 mr-2" />
+                All Tasks
+              </Button>
+            </Link>
+            <Link href="/availability" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button variant="outline" className="w-full justify-start border-black text-black hover:bg-gray-100">
+                <Settings className="w-4 h-4 mr-2" />
+                Availability
+              </Button>
+            </Link>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full justify-start bg-black text-white hover:bg-gray-800" disabled={isCreatingTask}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-[90vw] max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Add New Task</DialogTitle>
+                  <DialogDescription>
+                    Create a new task with subtasks, deadlines, and priorities.
+                  </DialogDescription>
+                </DialogHeader>
+                <TaskForm onSubmit={addTask} />
+              </DialogContent>
+            </Dialog>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start border-black text-black hover:bg-gray-100"
+                  disabled={isSigningOut}
+                >
+                  {isSigningOut ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <LogOut className="w-4 h-4 mr-2" />
+                  )}
+                  {isSigningOut ? 'Signing out...' : 'Sign Out'}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-[90vw]">
+                <DialogHeader>
+                  <DialogTitle>Sign Out</DialogTitle>
+                  <DialogDescription>
+                    Are you sure you want to sign out? You&apos;ll need to sign in again to access your tasks.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="flex gap-2">
+                  <Button variant="outline" onClick={() => {}}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleSignOut}
+                    disabled={isSigningOut}
+                  >
+                    {isSigningOut ? 'Signing out...' : 'Sign Out'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

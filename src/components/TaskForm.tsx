@@ -110,45 +110,47 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
       <div>
-        <label className="block text-sm font-medium mb-1">Task Title *</label>
+        <label className="block text-sm font-medium mb-2">Task Title *</label>
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          className="border-black"
+          className="border-black text-base"
         />
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">Description</label>
+        <label className="block text-sm font-medium mb-2">Description</label>
         <Textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="border-black"
+          className="border-black text-base min-h-[100px]"
         />
       </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Category</label>
-        <Input
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="border-black"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-2">Category</label>
+          <Input
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="border-black text-base"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-2">Deadline</label>
+          <Input
+            type="date"
+            value={deadline}
+            onChange={(e) => setDeadline(e.target.value)}
+            className="border-black text-base"
+          />
+        </div>
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">Deadline</label>
-        <Input
-          type="date"
-          value={deadline}
-          onChange={(e) => setDeadline(e.target.value)}
-          className="border-black"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Priority</label>
+        <label className="block text-sm font-medium mb-2">Priority</label>
         <Select value={priority} onValueChange={(value: 'Low' | 'Medium' | 'High') => setPriority(value)}>
-          <SelectTrigger className="border-black">
+          <SelectTrigger className="border-black text-base">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -159,43 +161,47 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
         </Select>
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">Subtasks ({subtasks.length})</label>
+        <label className="block text-sm font-medium mb-2">Subtasks ({subtasks.length})</label>
                 {subtasks.map((sub, index) => {
                   console.log('Rendering subtask:', sub.id, sub.description);
                   return (
-                    <div key={sub.id} className="flex space-x-2 mb-2">
-                      <Input
-                        placeholder="Description"
-                        value={sub.description}
-                        onChange={(e) => updateSubtask(index, 'description', e.target.value)}
-                        className="flex-1 border-black"
-                      />
-                      <Input
-                        type="date"
-                        placeholder="Deadline"
-                        value={sub.deadline || ''}
-                        onChange={(e) => updateSubtask(index, 'deadline', e.target.value)}
-                        className="w-32 border-black"
-                      />
-                      <Input
-                        type="number"
-                        placeholder="Minutes"
-                        value={sub.duration || ''}
-                        onChange={(e) => updateSubtask(index, 'duration', parseInt(e.target.value) || 0)}
-                        className="w-32 border-black"
-                      />
-                      <Button type="button" variant="outline" size="icon" onClick={() => removeSubtask(index)} className="border-black">
-                        <X className="w-4 h-4" />
-                      </Button>
+                    <div key={sub.id} className="border border-gray-200 rounded p-3 space-y-2 mb-3">
+                      <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
+                        <Input
+                          placeholder="Description"
+                          value={sub.description}
+                          onChange={(e) => updateSubtask(index, 'description', e.target.value)}
+                          className="flex-1 border-black text-base"
+                        />
+                        <div className="flex space-x-2">
+                          <Input
+                            type="date"
+                            placeholder="Deadline"
+                            value={sub.deadline || ''}
+                            onChange={(e) => updateSubtask(index, 'deadline', e.target.value)}
+                            className="flex-1 border-black text-base"
+                          />
+                          <Input
+                            type="number"
+                            placeholder="Minutes"
+                            value={sub.duration || ''}
+                            onChange={(e) => updateSubtask(index, 'duration', parseInt(e.target.value) || 0)}
+                            className="w-20 sm:w-24 border-black text-base"
+                          />
+                          <Button type="button" variant="outline" size="icon" onClick={() => removeSubtask(index)} className="border-black flex-shrink-0">
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
-        <Button type="button" variant="outline" onClick={addSubtask} className="border-black text-black hover:bg-gray-100">
+        <Button type="button" variant="outline" onClick={addSubtask} className="border-black text-black hover:bg-gray-100 w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Add Subtask
         </Button>
       </div>
-      <Button type="submit" className="w-full bg-black text-white hover:bg-gray-800" loading={isSubmitting} disabled={isSubmitting}>
+      <Button type="submit" className="w-full bg-black text-white hover:bg-gray-800 text-base py-3" loading={isSubmitting} disabled={isSubmitting}>
         {isSubmitting ? 'Creating Task...' : 'Create Task'}
       </Button>
     </form>
