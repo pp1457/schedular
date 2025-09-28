@@ -17,6 +17,7 @@ interface Task {
     done: boolean;
     date: string | null;
     remainingDuration: number | null;
+    scheduledDates?: unknown;
   }[];
 }
 
@@ -130,8 +131,8 @@ export default function AllTasksPage() {
     const subtasks = task.subtasks;
     if (subtasks.length === 0) return 'No subtasks';
 
-    const isScheduled = (st: { date: string | null }) => {
-      return st.date !== null;
+    const isScheduled = (st: { date: string | null; scheduledDates?: unknown }) => {
+      return st.date !== null || (Array.isArray(st.scheduledDates) && st.scheduledDates.length > 0);
     };
 
     const scheduledCount = subtasks.filter(isScheduled).length;

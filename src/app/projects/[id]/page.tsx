@@ -280,6 +280,8 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
 
   const schedulingStatus = getSchedulingStatus(project);
 
+  const allScheduled = schedulingStatus === 'Scheduled';
+
   return (
     <main className="container mx-auto p-4 max-w-2xl">
       <div className="border border-black p-6 rounded-lg">
@@ -289,7 +291,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
             <p className="text-gray-600 mb-2">{project.description || ''}</p>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm" onClick={handleSchedule} className="border-black text-black hover:bg-gray-100" loading={isScheduling} disabled={isScheduling}>
+            <Button variant="outline" size="sm" onClick={handleSchedule} className="border-black text-black hover:bg-gray-100" loading={isScheduling} disabled={isScheduling || allScheduled}>
               <Play className="w-4 h-4" />
             </Button>
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>

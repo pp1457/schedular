@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         project: { userId: session.user.id },
         date: { gte: startDate },
       },
-      data: { date: null },
+      data: { date: null, scheduledDates: [], remainingDuration: null },
     });
 
     // Re-schedule each project
@@ -81,27 +81,71 @@ export async function POST(request: Request) {
           return hours * 60;
         };
 
-        const currentDate = new Date(startDate);
         const dailyUsedMinutes: { [date: string]: number } = {};
 
+        // Initialize with scheduled from startDate onwards
+        for (const p of projects) {
+          for (const subtask of p.subtasks) {
+            if (subtask.scheduledDates) {
+              const dates = JSON.parse(JSON.stringify(subtask.scheduledDates)) as {date: string, duration: number}[];
+              for (const entry of dates) {
+                if (new Date(entry.date) >= startDate) {
+                  dailyUsedMinutes[entry.date] = (dailyUsedMinutes[entry.date] || 0) + entry.duration;
+                }
+              }
+            }
+          }
+        }
+
         for (const subtask of unscheduledSubtasks) {
-          let assigned = false;
+          let remaining = subtask.remainingDuration ?? subtask.duration ?? 0;
+          if (remaining === 0) continue;
+
+          const effectiveDeadline = subtask.deadline ? new Date(subtask.deadline) : (project.deadline ? new Date(project.deadline) : null);
+          let start = new Date(startDate);
+          if (effectiveDeadline) {
+            const bufferDeadline = new Date(effectiveDeadline);
+            bufferDeadline.setDate(bufferDeadline.getDate() - 7);
+            const estimatedDays = Math.ceil(remaining / 360);
+            const latestStart = new Date(bufferDeadline);
+            latestStart.setDate(latestStart.getDate() - estimatedDays);
+            if (latestStart > start) {
+              start = latestStart;
+            }
+          }
+
+          // Spread subtasks
+          const subtaskIndex = unscheduledSubtasks.indexOf(subtask);
+          start.setDate(start.getDate() + subtaskIndex);
+
+          const currentDate = new Date(start);
+          const scheduledDates: {date: string, duration: number}[] = [];
           let attempts = 0;
-          while (!assigned && attempts < 30) {
+          while (remaining > 0 && attempts < 60) {
             const dateStr = currentDate.toISOString().split('T')[0];
             const availableMinutes = getAvailableMinutes(currentDate);
             const used = dailyUsedMinutes[dateStr] || 0;
-            if (availableMinutes > 0 && used + (subtask.duration || 0) <= availableMinutes) {
-              await prisma.subtask.update({
-                where: { id: subtask.id },
-                data: { date: currentDate },
-              });
-              dailyUsedMinutes[dateStr] = used + (subtask.duration || 0);
-              assigned = true;
-            } else {
-              currentDate.setDate(currentDate.getDate() + 1);
-              attempts++;
+            const assignable = Math.min(availableMinutes - used, remaining);
+            if (assignable > 0) {
+              scheduledDates.push({date: dateStr, duration: assignable});
+              dailyUsedMinutes[dateStr] = (dailyUsedMinutes[dateStr] || 0) + assignable;
+              remaining -= assignable;
             }
+            currentDate.setDate(currentDate.getDate() + 1);
+            attempts++;
+          }
+
+          if (remaining === 0) {
+            const lastDate = scheduledDates[scheduledDates.length - 1].date;
+            await prisma.subtask.update({
+              where: { id: subtask.id },
+              data: { date: new Date(lastDate), remainingDuration: 0, scheduledDates },
+            });
+          } else {
+            await prisma.subtask.update({
+              where: { id: subtask.id },
+              data: { remainingDuration: remaining, scheduledDates },
+            });
           }
         }
       }

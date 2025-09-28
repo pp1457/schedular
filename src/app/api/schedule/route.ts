@@ -114,6 +114,10 @@ export async function POST(request: Request) {
         }
       }
 
+      // Spread subtasks across different days by offsetting start date based on index
+      const subtaskIndex = unscheduledSubtasks.indexOf(subtask);
+      startDate.setDate(startDate.getDate() + subtaskIndex);
+
       const currentDate = new Date(startDate);
       const scheduledDates: {date: string, duration: number}[] = subtask.scheduledDates ? JSON.parse(JSON.stringify(subtask.scheduledDates)) : [];
       let attempts = 0;
