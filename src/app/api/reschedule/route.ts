@@ -38,8 +38,14 @@ export async function POST(request: Request) {
         // For simplicity, duplicate the logic
         const unscheduledSubtasks = project.subtasks.filter(st => !st.date);
 
-        // Sort by priority, then by deadline proximity (earliest first)
+        // Sort by order (null last), then priority, then deadline
         unscheduledSubtasks.sort((a, b) => {
+          if (a.order !== null && b.order !== null) {
+            return a.order - b.order;
+          }
+          if (a.order !== null && b.order === null) return -1;
+          if (a.order === null && b.order !== null) return 1;
+          
           if (a.priority !== b.priority) return a.priority - b.priority;
           
           // Get effective deadline for each subtask (subtask deadline or project deadline)

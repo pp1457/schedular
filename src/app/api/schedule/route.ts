@@ -60,8 +60,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'All subtasks are already scheduled' });
     }
 
-    // Sort by priority (1 high, 3 low), then by deadline proximity (earliest first)
+    // Sort by order (null last), then priority (1 high, 3 low), then by deadline proximity (earliest first)
     unscheduledSubtasks.sort((a, b) => {
+      if (a.order !== null && b.order !== null) {
+        return a.order - b.order;
+      }
+      if (a.order !== null && b.order === null) return -1;
+      if (a.order === null && b.order !== null) return 1;
+      
       if (a.priority !== b.priority) return a.priority - b.priority;
       
       // Get effective deadline for each subtask (subtask deadline or project deadline)

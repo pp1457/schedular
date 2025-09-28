@@ -67,8 +67,14 @@ export async function POST(request: Request) {
         // Use the same logic as main schedule
         const unscheduledSubtasks = project.subtasks;
 
-        // Sort by priority, then by deadline proximity
+        // Sort by order, then priority, then deadline
         unscheduledSubtasks.sort((a, b) => {
+          if (a.order !== null && b.order !== null) {
+            return a.order - b.order;
+          }
+          if (a.order !== null && b.order === null) return -1;
+          if (a.order === null && b.order !== null) return 1;
+          
           if (a.priority !== b.priority) return a.priority - b.priority;
           
           const aDeadline = a.deadline ? new Date(a.deadline) : (project.deadline ? new Date(project.deadline) : null);
