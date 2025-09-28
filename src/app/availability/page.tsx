@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatLocalDate } from '@/lib/utils';
 
 interface Availability {
   id: string;
@@ -56,7 +57,7 @@ export default function Availability() {
     if (res.ok) {
       alert('Availability updated');
       // Re-schedule from today
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatLocalDate(new Date());
       await fetch('/api/reschedule', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,7 +72,7 @@ export default function Availability() {
     const res = await fetch('/api/availability/overrides', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: selectedDate.toISOString().split('T')[0], hours }),
+      body: JSON.stringify({ date: formatLocalDate(selectedDate), hours }),
     });
     if (res.ok) {
       fetchOverrides();
@@ -81,7 +82,7 @@ export default function Availability() {
       await fetch('/api/reschedule', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ start_date: selectedDate.toISOString().split('T')[0] })
+        body: JSON.stringify({ start_date: formatLocalDate(selectedDate) })
       });
     }
   };
@@ -122,8 +123,8 @@ export default function Availability() {
   };
 
   const getOverrideForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return overrides.find(o => new Date(o.date).toISOString().split('T')[0] === dateStr);
+    const dateStr = formatLocalDate(date);
+    return overrides.find(o => o.date === dateStr);
   };
 
   const getAvailabilityForDate = (date: Date) => {

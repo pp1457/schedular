@@ -17,7 +17,7 @@ export default function DailyTasks({ params }: { params: Promise<{ date: string 
       const parsedDate = new Date(date);
       if (isNaN(parsedDate.getTime())) return;
       try {
-        const res = await fetch(`/api/daily?date=${date}`);
+        const res = await fetch(`/api/daily/${date}`);
         if (!res.ok) throw new Error('Network response was not ok');
         const data = await res.json();
         setSubtasks(data);

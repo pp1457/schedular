@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { parseLocalDate, formatLocalDate } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -30,10 +31,10 @@ async function reScheduleFromDate(userId: string, startDate: Date) {
   const overrides = await prisma.userAvailabilityOverride.findMany({
     where: { userId },
   });
-  const overridesMap = new Map(overrides.map(o => [o.date.toISOString().split('T')[0], o.hours]));
+  const overridesMap = new Map(overrides.map(o => [formatLocalDate(o.date), o.hours]));
 
   const getAvailableMinutes = (date: Date): number => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(date);
     const override = overridesMap.get(dateStr);
     if (override !== undefined) {
       return override ? override * 60 : 0;
@@ -79,7 +80,7 @@ async function reScheduleFromDate(userId: string, startDate: Date) {
         if (subtask.scheduledDates) {
           const dates = JSON.parse(JSON.stringify(subtask.scheduledDates)) as {date: string, duration: number}[];
           for (const entry of dates) {
-            if (new Date(entry.date) >= startDate) {
+            if (parseLocalDate(entry.date) >= startDate) {
               dailyUsedMinutes[entry.date] = (dailyUsedMinutes[entry.date] || 0) + entry.duration;
             }
           }
@@ -92,49 +93,71 @@ async function reScheduleFromDate(userId: string, startDate: Date) {
       if (remaining === 0) continue;
 
       const effectiveDeadline = subtask.deadline ? new Date(subtask.deadline) : (project.deadline ? new Date(project.deadline) : null);
-      let start = new Date(startDate);
-      if (effectiveDeadline) {
-        const bufferDeadline = new Date(effectiveDeadline);
-        bufferDeadline.setDate(bufferDeadline.getDate() - 7);
-        const estimatedDays = Math.ceil(remaining / 360);
-        const latestStart = new Date(bufferDeadline);
-        latestStart.setDate(latestStart.getDate() - estimatedDays);
-        if (latestStart > start) {
-          start = latestStart;
-        }
-      }
-
-      // Spread subtasks
-      const subtaskIndex = unscheduledSubtasks.indexOf(subtask);
-      start.setDate(start.getDate() + subtaskIndex);
-
-      const currentDate = new Date(start);
-      const scheduledDates: {date: string, duration: number}[] = [];
-      let attempts = 0;
-      while (remaining > 0 && attempts < 60) {
-        const dateStr = currentDate.toISOString().split('T')[0];
+      
+      // Find available days for scheduling
+      const availableDays: { date: Date; availableMinutes: number }[] = [];
+      let currentDate = new Date(startDate);
+      const maxDays = 60; // Look ahead up to 60 days
+      
+      for (let i = 0; i < maxDays && availableDays.length < 30; i++) {
         const availableMinutes = getAvailableMinutes(currentDate);
-        const used = dailyUsedMinutes[dateStr] || 0;
-        const assignable = Math.min(availableMinutes - used, remaining);
-        if (assignable > 0) {
-          scheduledDates.push({date: dateStr, duration: assignable});
-          dailyUsedMinutes[dateStr] = (dailyUsedMinutes[dateStr] || 0) + assignable;
-          remaining -= assignable;
+        if (availableMinutes > 0) {
+          // Check if this day already has some scheduling from other subtasks
+          const dateStr = formatLocalDate(currentDate);
+          const alreadyUsed = dailyUsedMinutes[dateStr] || 0;
+          const netAvailable = Math.max(0, availableMinutes - alreadyUsed);
+          if (netAvailable > 0) {
+            availableDays.push({ 
+              date: new Date(currentDate), 
+              availableMinutes: netAvailable 
+            });
+          }
         }
-        currentDate.setDate(currentDate.getDate() + 1);
-        attempts++;
+        currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // Next day
+        
+        // Stop if we've passed the deadline
+        if (effectiveDeadline && currentDate > effectiveDeadline) break;
       }
 
-      if (remaining === 0) {
+      if (availableDays.length === 0) {
+        // No available days, skip this subtask
+        continue;
+      }
+
+      // Calculate total available time
+      const totalAvailableMinutes = availableDays.reduce((sum, day) => sum + day.availableMinutes, 0);
+      
+      if (totalAvailableMinutes < remaining) {
+        // Not enough time available, schedule what we can
+        remaining = totalAvailableMinutes;
+      }
+
+      // Distribute evenly across available days
+      const scheduledDates: {date: string, duration: number}[] = [];
+      let remainingToSchedule = remaining;
+      
+      for (const day of availableDays) {
+        if (remainingToSchedule <= 0) break;
+        
+        const dateStr = formatLocalDate(day.date);
+        const timeForThisDay = Math.min(day.availableMinutes, remainingToSchedule);
+        
+        if (timeForThisDay > 0) {
+          scheduledDates.push({ date: dateStr, duration: timeForThisDay });
+          dailyUsedMinutes[dateStr] = (dailyUsedMinutes[dateStr] || 0) + timeForThisDay;
+          remainingToSchedule -= timeForThisDay;
+        }
+      }
+
+      if (scheduledDates.length > 0) {
         const lastDate = scheduledDates[scheduledDates.length - 1].date;
         await prisma.subtask.update({
           where: { id: subtask.id },
-          data: { date: new Date(lastDate), remainingDuration: 0, scheduledDates },
-        });
-      } else {
-        await prisma.subtask.update({
-          where: { id: subtask.id },
-          data: { remainingDuration: remaining, scheduledDates },
+          data: { 
+            date: parseLocalDate(lastDate), 
+            remainingDuration: remaining - (remaining - remainingToSchedule), 
+            scheduledDates 
+          },
         });
       }
     }
@@ -169,7 +192,7 @@ export async function POST(request: Request) {
 
     const data = {
       userId: session.user.id,
-      date: new Date(date),
+      date: parseLocalDate(date),
       hours: hours,
     };
 
@@ -178,7 +201,7 @@ export async function POST(request: Request) {
       where: {
         userId_date: {
           userId: session.user.id,
-          date: new Date(date),
+          date: parseLocalDate(date),
         },
       },
       update: { hours },
@@ -186,7 +209,7 @@ export async function POST(request: Request) {
     });
 
     // Re-schedule tasks from this date onwards
-    await reScheduleFromDate(session.user.id, new Date(date));
+    await reScheduleFromDate(session.user.id, parseLocalDate(date));
 
     return NextResponse.json(override);
   } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -206,12 +229,12 @@ export async function DELETE(request: Request) {
     await prisma.userAvailabilityOverride.deleteMany({
       where: {
         userId: session.user.id,
-        date: new Date(date),
+        date: parseLocalDate(date),
       },
     });
 
     // Re-schedule tasks from this date onwards
-    await reScheduleFromDate(session.user.id, new Date(date));
+    await reScheduleFromDate(session.user.id, parseLocalDate(date));
 
     return NextResponse.json({ message: 'Override deleted' });
   } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars

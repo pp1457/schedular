@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -33,10 +34,10 @@ export async function POST(request: Request) {
     const overrides = await prisma.userAvailabilityOverride.findMany({
       where: { userId: session.user.id },
     });
-    const overridesMap = new Map(overrides.map(o => [o.date.toISOString().split('T')[0], o.hours]));
+    const overridesMap = new Map(overrides.map(o => [formatLocalDate(o.date), o.hours]));
 
     const getAvailableMinutes = (date: Date): number => {
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = formatLocalDate(date);
       const override = overridesMap.get(dateStr);
       if (override !== undefined) {
         return override ? override * 60 : 0;
@@ -108,54 +109,77 @@ export async function POST(request: Request) {
       if (remaining === 0) continue;
 
       const effectiveDeadline = subtask.deadline ? new Date(subtask.deadline) : (project.deadline ? new Date(project.deadline) : null);
-      let startDate = new Date(today);
-      if (effectiveDeadline) {
-        const bufferDeadline = new Date(effectiveDeadline);
-        bufferDeadline.setDate(bufferDeadline.getDate() - 7); // Finish 1 week before deadline
-        const estimatedDays = Math.ceil(remaining / 360); // Assume ~6 hours/day
-        const latestStart = new Date(bufferDeadline);
-        latestStart.setDate(latestStart.getDate() - estimatedDays);
-        if (latestStart > today) {
-          startDate = latestStart;
-        }
-      }
-
-      // Spread subtasks across different days by offsetting start date based on index
-      const subtaskIndex = unscheduledSubtasks.indexOf(subtask);
-      startDate.setDate(startDate.getDate() + subtaskIndex);
-
-      const currentDate = new Date(startDate);
-      const scheduledDates: {date: string, duration: number}[] = subtask.scheduledDates ? JSON.parse(JSON.stringify(subtask.scheduledDates)) : [];
-      let attempts = 0;
-      while (remaining > 0 && attempts < 60) {
-        const dateStr = currentDate.toISOString().split('T')[0];
+      
+      // Find available days for scheduling
+      const availableDays: { date: Date; availableMinutes: number }[] = [];
+      let currentDate = new Date(today);
+      const maxDays = 60; // Look ahead up to 60 days
+      
+      for (let i = 0; i < maxDays && availableDays.length < 30; i++) {
         const availableMinutes = hasAvailability ? getAvailableMinutes(currentDate) : defaultAvailableMinutes;
-        const used = dailyUsedMinutes[dateStr] || 0;
-        const assignable = Math.min(availableMinutes - used, remaining);
-        if (assignable > 0) {
-          scheduledDates.push({date: dateStr, duration: assignable});
-          dailyUsedMinutes[dateStr] = (dailyUsedMinutes[dateStr] || 0) + assignable;
-          remaining -= assignable;
+        if (availableMinutes > 0) {
+          // Check if this day already has some scheduling
+          const dateStr = formatLocalDate(currentDate);
+          const alreadyUsed = dailyUsedMinutes[dateStr] || 0;
+          const netAvailable = Math.max(0, availableMinutes - alreadyUsed);
+          if (netAvailable > 0) {
+            availableDays.push({ 
+              date: new Date(currentDate), 
+              availableMinutes: netAvailable 
+            });
+          }
         }
-        currentDate.setDate(currentDate.getDate() + 1);
-        attempts++;
+        currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // Next day
+        
+        // Stop if we've passed the deadline
+        if (effectiveDeadline && currentDate > effectiveDeadline) break;
       }
 
-      if (remaining === 0) {
+      if (availableDays.length === 0) {
+        // No available days, mark as issue
+        deadlineIssues.push(subtask.id);
+        continue;
+      }
+
+      // Calculate total available time
+      const totalAvailableMinutes = availableDays.reduce((sum, day) => sum + day.availableMinutes, 0);
+      
+      if (totalAvailableMinutes < remaining) {
+        // Not enough time available, schedule what we can
+        remaining = totalAvailableMinutes;
+      }
+
+      // Distribute evenly across available days
+      const scheduledDates: {date: string, duration: number}[] = subtask.scheduledDates ? JSON.parse(JSON.stringify(subtask.scheduledDates)) : [];
+      let remainingToSchedule = remaining;
+      
+      for (const day of availableDays) {
+        if (remainingToSchedule <= 0) break;
+        
+        const dateStr = formatLocalDate(day.date);
+        const timeForThisDay = Math.min(day.availableMinutes, remainingToSchedule);
+        
+        if (timeForThisDay > 0) {
+          scheduledDates.push({ date: dateStr, duration: timeForThisDay });
+          dailyUsedMinutes[dateStr] = (dailyUsedMinutes[dateStr] || 0) + timeForThisDay;
+          remainingToSchedule -= timeForThisDay;
+        }
+      }
+
+      if (remainingToSchedule < remaining) {
         const lastDate = scheduledDates[scheduledDates.length - 1].date;
         await prisma.subtask.update({
           where: { id: subtask.id },
-          data: { date: new Date(lastDate), remainingDuration: 0, scheduledDates },
+          data: { 
+            date: parseLocalDate(lastDate), 
+            remainingDuration: remainingToSchedule > 0 ? remainingToSchedule : 0, 
+            scheduledDates 
+          },
         });
         if (scheduledDates.length > 1) {
           splitSubtasks.push(subtask.id);
         }
       } else {
-        await prisma.subtask.update({
-          where: { id: subtask.id },
-          data: { remainingDuration: remaining, scheduledDates },
-        });
-        console.log(`Could not fully schedule subtask ${subtask.id} (${subtask.description}) - remaining ${remaining} minutes`);
         deadlineIssues.push(subtask.id);
       }
     }

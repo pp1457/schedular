@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { parseLocalDate } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -35,7 +36,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     } = {};
     if (body.description !== undefined) data.description = body.description;
     if (body.date !== undefined) {
-      data.date = body.date ? new Date(body.date) : null;
+      data.date = body.date ? parseLocalDate(body.date) : null;
       // If setting a date, mark as fully scheduled
       if (body.date) {
         data.remainingDuration = 0;

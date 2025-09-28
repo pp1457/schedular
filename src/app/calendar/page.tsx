@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { SubtaskMinimal } from '@/lib/types';
+import { formatLocalDate } from '@/lib/utils';
 
 export default function Calendar() {
   const [subtasks, setSubtasks] = useState<SubtaskMinimal[]>([]);
@@ -56,12 +57,12 @@ export default function Calendar() {
   };
 
   const getSubtasksForDate = (date: Date) => {
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateStr = formatLocalDate(date);
     return subtasks
       .filter(st => {
         if (!st.date) return false;
         const d = new Date(st.date);
-        const subtaskDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const subtaskDateStr = formatLocalDate(d);
         return subtaskDateStr === dateStr;
       })
       .sort((a, b) => {
