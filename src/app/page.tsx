@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
 import { SubtaskWithProject } from '@/lib/types';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { formatLocalDate, parseLocalDate, formatDisplayDate, parseDateFromDB, formatDBDate } from '@/lib/utils';
 
 export default function Home() {
   const [subtasksByDate, setSubtasksByDate] = useState<Record<string, SubtaskWithProject[]>>({});
@@ -21,7 +21,7 @@ export default function Home() {
     }
     const subtasks: SubtaskWithProject[] = await res.json();
     
-    // Group subtasks by date
+  // Group subtasks by date
     const grouped: Record<string, SubtaskWithProject[]> = {};
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -30,14 +30,14 @@ export default function Home() {
     for (let i = -7; i <= 30; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      const dateStr = formatLocalDate(date);
+      const dateStr = formatDBDate(date);
       grouped[dateStr] = [];
     }
     
     subtasks.forEach(subtask => {
       if (subtask.date) {
-        const d = parseLocalDate(subtask.date);
-        const dateStr = formatLocalDate(d);
+        const d = parseDateFromDB(subtask.date);
+        const dateStr = formatDBDate(d);
         if (grouped[dateStr]) {
           grouped[dateStr].push(subtask);
         }
@@ -49,7 +49,7 @@ export default function Home() {
   };
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseDateFromDB(dateStr);
     const month = date.getMonth() + 1;
     const day = date.getDate();
     return `${month}/${day}`;
@@ -131,7 +131,7 @@ export default function Home() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs md:text-sm text-gray-600">
                         <div>
-                          <span className="font-medium">Deadline:</span> {subtask.project.deadline ? new Date(subtask.project.deadline).toLocaleDateString() : 'No deadline'}
+                          <span className="font-medium">Deadline:</span> {subtask.project.deadline ? formatDisplayDate(subtask.project.deadline) : 'No deadline'}
                         </div>
                         <div>
                           <span className="font-medium">Priority:</span> {getPriorityText(subtask.project.priority)}

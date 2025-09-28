@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { SubtaskMinimal } from '@/lib/types';
-import { formatLocalDate } from '@/lib/utils';
+import { formatLocalDate, formatDisplayDate, parseDateFromDB, formatDBDate } from '@/lib/utils';
 
 export default function Calendar() {
   const [subtasks, setSubtasks] = useState<SubtaskMinimal[]>([]);
@@ -57,12 +57,12 @@ export default function Calendar() {
   };
 
   const getSubtasksForDate = (date: Date) => {
-    const dateStr = formatLocalDate(date);
+    const dateStr = formatDBDate(date);
     return subtasks
       .filter(st => {
         if (!st.date) return false;
-        const d = new Date(st.date);
-        const subtaskDateStr = formatLocalDate(d);
+        const d = parseDateFromDB(st.date);
+        const subtaskDateStr = formatDBDate(d);
         return subtaskDateStr === dateStr;
       })
       .sort((a, b) => {
@@ -153,7 +153,7 @@ export default function Calendar() {
         <DialogContent className="bg-white border-black max-w-[90vw] md:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {selectedDate ? selectedDate.toLocaleDateString() : ''}
+              {selectedDate ? formatDisplayDate(formatLocalDate(selectedDate)) : ''}
             </DialogTitle>
             <DialogDescription>
               View and manage tasks scheduled for this date.

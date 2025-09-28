@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { Loader2 } from 'lucide-react';
+import { formatDisplayDate, parseDateFromDB } from '@/lib/utils';
 
 interface Task {
   id: string;
@@ -63,7 +64,7 @@ export default function AllTasksPage() {
         if (!a.deadline && !b.deadline) return 0;
         if (!a.deadline) return 1;
         if (!b.deadline) return -1;
-        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        return parseDateFromDB(a.deadline).getTime() - parseDateFromDB(b.deadline).getTime();
       });
       setActiveTasks(active);
       
@@ -72,7 +73,7 @@ export default function AllTasksPage() {
       done.forEach((task: Task) => {
         let monthKey = 'No Deadline';
         if (task.deadline) {
-          const deadline = new Date(task.deadline);
+          const deadline = parseDateFromDB(task.deadline);
           monthKey = `${deadline.toLocaleString('default', { month: 'long' })} ${deadline.getFullYear()}`;
         }
         if (!groupedDone[monthKey]) {
@@ -103,7 +104,7 @@ export default function AllTasksPage() {
           if (!a.deadline && !b.deadline) return 0;
           if (!a.deadline) return 1;
           if (!b.deadline) return -1;
-          return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+          return parseDateFromDB(a.deadline).getTime() - parseDateFromDB(b.deadline).getTime();
         });
         sortedGroupedDone[month] = groupedDone[month];
       });
@@ -168,7 +169,7 @@ export default function AllTasksPage() {
           <h2 className="text-lg md:text-xl font-semibold mb-2 min-h-[2rem] md:min-h-[3rem] flex items-center">{task.title}</h2>
           <div className="flex-1 space-y-2 md:space-y-3">
             <p className="text-sm md:text-base text-gray-600">
-              Deadline: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}
+              Deadline: {task.deadline ? formatDisplayDate(task.deadline) : 'No deadline'}
             </p>
             <p className="text-sm md:text-base text-gray-600">Priority: {getPriorityText(task.priority)}</p>
             <div className="flex items-center space-x-2">

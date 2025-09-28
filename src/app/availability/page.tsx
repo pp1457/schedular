@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { formatLocalDate } from '@/lib/utils';
+import { formatLocalDate, formatDisplayDate, formatDBDate } from '@/lib/utils';
 
 interface Availability {
   id: string;
@@ -43,7 +43,8 @@ export default function Availability() {
     const res = await fetch('/api/availability/overrides');
     if (res.ok) {
       const data = await res.json();
-      setOverrides(data.map((o: Override) => ({ ...o, date: formatLocalDate(new Date(o.date)) })));
+      // Keep date in canonical DB format (YYYY-MM-DD) for comparisons/keys.
+      setOverrides(data.map((o: Override) => ({ ...o, date: formatDBDate(o.date) })));
     }
   };
 
@@ -72,7 +73,7 @@ export default function Availability() {
     const res = await fetch('/api/availability/overrides', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: formatLocalDate(selectedDate), hours }),
+      body: JSON.stringify({ date: formatDBDate(selectedDate), hours }),
     });
     if (res.ok) {
       fetchOverrides();
@@ -82,7 +83,7 @@ export default function Availability() {
       await fetch('/api/reschedule', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ start_date: formatLocalDate(selectedDate) })
+        body: JSON.stringify({ start_date: formatDBDate(selectedDate) })
       });
     }
   };
@@ -123,7 +124,7 @@ export default function Availability() {
   };
 
   const getOverrideForDate = (date: Date) => {
-    const dateStr = formatLocalDate(date);
+    const dateStr = formatDBDate(date);
     return overrides.find(o => o.date === dateStr);
   };
 
@@ -244,7 +245,7 @@ export default function Availability() {
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
         <DialogContent className="max-w-[90vw] md:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base md:text-lg">Set availability for {selectedDate?.toLocaleDateString()}</DialogTitle>
+            <DialogTitle className="text-base md:text-lg">Set availability for {selectedDate ? formatDisplayDate(formatLocalDate(selectedDate)) : ''}</DialogTitle>
             <DialogDescription>
               Set custom availability hours for this specific date.
             </DialogDescription>
@@ -268,7 +269,7 @@ export default function Availability() {
             <Button variant="outline" onClick={() => setSelectedDate(null)} className="w-full sm:w-auto">Cancel</Button>
             <Button onClick={updateOverride} className="w-full sm:w-auto">Save</Button>
             {selectedDate && getOverrideForDate(selectedDate) && (
-              <Button variant="destructive" onClick={() => deleteOverride(formatLocalDate(selectedDate))} className="w-full sm:w-auto">
+              <Button variant="destructive" onClick={() => deleteOverride(formatDBDate(selectedDate))} className="w-full sm:w-auto">
                 Delete Override
               </Button>
             )}

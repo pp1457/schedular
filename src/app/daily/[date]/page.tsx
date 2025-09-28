@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SubtaskMinimal } from '@/lib/types';
+import { formatDisplayDate } from '@/lib/utils';
 
 
 export default function DailyTasks({ params }: { params: Promise<{ date: string }> }) {
@@ -45,10 +46,11 @@ export default function DailyTasks({ params }: { params: Promise<{ date: string 
   let dateLabel = 'Invalid date';
   let isValidDate = false;
   if (typeof date === 'string') {
-    const parsedDate = new Date(date);
-    if (!isNaN(parsedDate.getTime())) {
-      dateLabel = parsedDate.toLocaleDateString();
+    try {
+      dateLabel = formatDisplayDate(date);
       isValidDate = true;
+    } catch {
+      // Invalid date
     }
   }
 

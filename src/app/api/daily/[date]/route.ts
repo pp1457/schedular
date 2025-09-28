@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { parseLocalDate, formatLocalDate } from '@/lib/utils';
+import { parseLocalDate, formatDBDate } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -14,7 +14,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ date
     }
 
     const { date } = await params;
-    const targetDate = parseLocalDate(date);
+  const targetDate = parseLocalDate(date);
     
     // Get all subtasks for the user
     const allSubtasks = await prisma.subtask.findMany({
@@ -27,13 +27,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ date
     // Filter subtasks that are scheduled for the target date
     const tasksForDate = [];
     for (const subtask of allSubtasks) {
-      if (subtask.date && formatLocalDate(new Date(subtask.date)) === formatLocalDate(targetDate)) {
+      // Compare canonical DB date (YYYY-MM-DD) to the target local date
+      if (subtask.date && formatDBDate(subtask.date) === formatDBDate(targetDate)) {
         // Regular scheduled subtask
         tasksForDate.push(subtask);
       } else if (subtask.scheduledDates && Array.isArray(subtask.scheduledDates)) {
         // Check if this split subtask is scheduled for the target date
         const schedules = subtask.scheduledDates as {date: string, duration: number}[];
-        const scheduleForDate = schedules.find(s => formatLocalDate(parseLocalDate(s.date)) === formatLocalDate(targetDate));
+  // scheduledDates may contain date-only strings or ISO timestamps. Normalize
+  // both sides to DB canonical YYYY-MM-DD for equality.
+  const scheduleForDate = schedules.find(s => formatDBDate(parseLocalDate(s.date)) === formatDBDate(targetDate));
         if (scheduleForDate) {
           tasksForDate.push({
             ...subtask,

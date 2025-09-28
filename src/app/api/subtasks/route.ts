@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { parseLocalDate } from '@/lib/utils';
+import { parseUTCDate } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       data: {
         projectId,
         description,
-        deadline: deadline ? parseLocalDate(deadline) : null,
+        deadline: deadline ? parseUTCDate(deadline) : null,
         duration,
         remainingDuration: duration,
         priority,

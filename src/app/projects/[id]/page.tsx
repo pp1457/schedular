@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Edit, Trash2, Play, Pencil } from 'lucide-react';
+import { formatDisplayDate, parseDateFromDB } from '@/lib/utils';
 import { BaseSubtask, Project } from '@/lib/types';
 
 interface ScheduledSubtask extends BaseSubtask {
@@ -319,7 +320,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div>
             <p className="text-sm text-gray-600">Deadline</p>
-            <p>{project.deadline ? new Date(project.deadline).toLocaleDateString() : 'No deadline'}</p>
+            <p>{project.deadline ? formatDisplayDate(project.deadline) : 'No deadline'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Priority</p>
@@ -356,7 +357,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
                   
                   // If both orders are null, sort by date
                   if (a.date && b.date) {
-                    const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
+                    const dateCompare = parseDateFromDB(a.date).getTime() - parseDateFromDB(b.date).getTime();
                     if (dateCompare !== 0) return dateCompare;
                   } else if (a.date && !b.date) {
                     return -1;
@@ -404,7 +405,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
                               <div className="ml-2 mt-1 space-y-1">
                                 {subtask.scheduledDates.map((s, index) => (
                                   <div key={index} className="text-xs">
-                                    {new Date(s.date).toLocaleDateString()}: {s.duration} min
+                                    {formatDisplayDate(s.date)}: {s.duration} min
                                   </div>
                                 ))}
                               </div>
@@ -412,7 +413,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
                           </div>
                         ) : (
                           <span>
-                            {subtask.date ? new Date(subtask.date).toLocaleDateString() : 'Not scheduled'}
+                            {subtask.date ? formatDisplayDate(subtask.date) : 'Not scheduled'}
                           </span>
                         )}
                       </div>
@@ -483,7 +484,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
                   <div key={subtask.id} className="flex justify-between">
                     <span>{subtask.description}</span>
                     <span className="text-sm text-gray-600">
-                      {new Date(subtask.date).toLocaleDateString()}
+                      {formatDisplayDate(subtask.date)}
                     </span>
                   </div>
                 ))}

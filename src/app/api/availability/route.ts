@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createSecureResponse, createErrorResponse } from '@/lib/security';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { formatDBDate, parseLocalDate } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
             const availableMinutes = data.find((d: { dayOfWeek: number; hours: number }) => d.dayOfWeek === currentDate.getDay())?.hours * 60 || 0;
             if (availableMinutes > 0) {
               // Check if this day already has some scheduling from other subtasks
-              const dateStr = formatLocalDate(currentDate);
+              const dateStr = formatDBDate(currentDate);
               const alreadyUsed = dailyUsedMinutes[dateStr] || 0;
               const netAvailable = Math.max(0, availableMinutes - alreadyUsed);
               if (netAvailable > 0) {
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
           for (const day of availableDays) {
             if (remainingToSchedule <= 0) break;
             
-            const dateStr = formatLocalDate(day.date);
+            const dateStr = formatDBDate(day.date);
             const timeForThisDay = Math.min(day.availableMinutes, remainingToSchedule);
             
             if (timeForThisDay > 0) {

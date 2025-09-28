@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { parseUTCDate, formatDBDate } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -34,10 +34,10 @@ export async function POST(request: Request) {
     const overrides = await prisma.userAvailabilityOverride.findMany({
       where: { userId: session.user.id },
     });
-    const overridesMap = new Map(overrides.map(o => [formatLocalDate(o.date), o.hours]));
+  const overridesMap = new Map(overrides.map(o => [formatDBDate(o.date), o.hours]));
 
     const getAvailableMinutes = (date: Date): number => {
-      const dateStr = formatLocalDate(date);
+  const dateStr = formatDBDate(date);
       const override = overridesMap.get(dateStr);
       if (override !== undefined) {
         return override ? override * 60 : 0;
@@ -61,8 +61,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'All subtasks are already scheduled' });
     }
 
-    // Sort by order (null last), then priority (1 high, 3 low), then by deadline proximity (earliest first)
-    unscheduledSubtasks.sort((a, b) => {
+    // Sort all subtasks by order (null last), then priority (1 high, 3 low), then by deadline proximity (earliest first)
+    const allSubtasks = [...project.subtasks];
+    allSubtasks.sort((a, b) => {
       if (a.order !== null && b.order !== null) {
         return a.order - b.order;
       }
@@ -104,7 +105,9 @@ export async function POST(request: Request) {
     const splitSubtasks: string[] = [];
     const deadlineIssues: string[] = [];
 
-    for (const subtask of unscheduledSubtasks) {
+    for (const subtask of allSubtasks) {
+      if (subtask.date) continue; // already scheduled, skip
+
       let remaining = subtask.remainingDuration ?? subtask.duration ?? 0;
       if (remaining === 0) continue;
 
@@ -119,7 +122,7 @@ export async function POST(request: Request) {
         const availableMinutes = hasAvailability ? getAvailableMinutes(currentDate) : defaultAvailableMinutes;
         if (availableMinutes > 0) {
           // Check if this day already has some scheduling
-          const dateStr = formatLocalDate(currentDate);
+    const dateStr = formatDBDate(currentDate);
           const alreadyUsed = dailyUsedMinutes[dateStr] || 0;
           const netAvailable = Math.max(0, availableMinutes - alreadyUsed);
           if (netAvailable > 0) {
@@ -149,34 +152,57 @@ export async function POST(request: Request) {
         remaining = totalAvailableMinutes;
       }
 
-      // Distribute evenly across available days
-      const scheduledDates: {date: string, duration: number}[] = subtask.scheduledDates ? JSON.parse(JSON.stringify(subtask.scheduledDates)) : [];
-      let remainingToSchedule = remaining;
-      
+      // Try to schedule on a single day if possible, to spread subtasks across days
+      const existingScheduledDates = subtask.scheduledDates ? JSON.parse(JSON.stringify(subtask.scheduledDates)) : [];
+      const scheduledDates = [...existingScheduledDates];
+      let actuallyScheduled = 0;
+
+      // Find the first day with enough availability for the entire remaining
+      let scheduledOnSingleDay = false;
       for (const day of availableDays) {
-        if (remainingToSchedule <= 0) break;
-        
-        const dateStr = formatLocalDate(day.date);
-        const timeForThisDay = Math.min(day.availableMinutes, remainingToSchedule);
-        
-        if (timeForThisDay > 0) {
-          scheduledDates.push({ date: dateStr, duration: timeForThisDay });
-          dailyUsedMinutes[dateStr] = (dailyUsedMinutes[dateStr] || 0) + timeForThisDay;
-          remainingToSchedule -= timeForThisDay;
+  const dateStr = formatDBDate(day.date);
+        const alreadyUsed = dailyUsedMinutes[dateStr] || 0;
+        const netAvailable = Math.max(0, day.availableMinutes - alreadyUsed);
+        if (netAvailable >= remaining) {
+          scheduledDates.push({ date: dateStr, duration: remaining });
+          dailyUsedMinutes[dateStr] = (dailyUsedMinutes[dateStr] || 0) + remaining;
+          actuallyScheduled = remaining;
+          scheduledOnSingleDay = true;
+          break;
         }
       }
 
-      if (remainingToSchedule < remaining) {
+      if (!scheduledOnSingleDay) {
+        // Fall back to distributing across multiple days
+        let remainingToSchedule = remaining;
+        for (const day of availableDays) {
+          if (remainingToSchedule <= 0) break;
+          
+          const dateStr = formatDBDate(day.date);
+          const alreadyUsed = dailyUsedMinutes[dateStr] || 0;
+          const netAvailable = Math.max(0, day.availableMinutes - alreadyUsed);
+          const timeForThisDay = Math.min(netAvailable, remainingToSchedule);
+          
+          if (timeForThisDay > 0) {
+            scheduledDates.push({ date: dateStr, duration: timeForThisDay });
+            dailyUsedMinutes[dateStr] = (dailyUsedMinutes[dateStr] || 0) + timeForThisDay;
+            remainingToSchedule -= timeForThisDay;
+            actuallyScheduled += timeForThisDay;
+          }
+        }
+      }
+
+      if (actuallyScheduled > 0) {
         const lastDate = scheduledDates[scheduledDates.length - 1].date;
         await prisma.subtask.update({
           where: { id: subtask.id },
           data: { 
-            date: parseLocalDate(lastDate), 
-            remainingDuration: remainingToSchedule > 0 ? remainingToSchedule : 0, 
+            date: parseUTCDate(lastDate), 
+            remainingDuration: remaining - actuallyScheduled, 
             scheduledDates 
           },
         });
-        if (scheduledDates.length > 1) {
+        if (scheduledDates.length - existingScheduledDates.length > 1) {
           splitSubtasks.push(subtask.id);
         }
       } else {
