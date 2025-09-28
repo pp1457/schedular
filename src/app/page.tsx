@@ -10,6 +10,7 @@ interface Subtask {
   duration: number | null;
   done: boolean;
   priority: number;
+  isSplitPart?: boolean;
   project: {
     id: string;
     title: string;

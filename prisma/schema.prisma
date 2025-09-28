@@ -80,6 +80,8 @@ model Subtask {
   date      DateTime? @db.Date
   deadline  DateTime? @db.Date
   duration  Int?
+  remainingDuration Int?
+  scheduledDates Json? // Array of {date: string, duration: number}
   done      Boolean  @default(false)
   priority  Int      @default(2)
 }

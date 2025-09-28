@@ -16,6 +16,7 @@ interface Subtask {
   done: boolean;
   date: string | null;
   duration: number | null;
+  scheduledDates?: {date: string, duration: number}[];
 }
 
 interface Project {
@@ -43,6 +44,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
   const [scheduleMessage, setScheduleMessage] = useState<string>('');
   const [editingSubtask, setEditingSubtask] = useState<Subtask | null>(null);
   const [isEditSubtaskDialogOpen, setIsEditSubtaskDialogOpen] = useState(false);
+  const [expandedSplits, setExpandedSplits] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   const fetchProject = useCallback(async () => {
@@ -83,22 +85,29 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const handleSchedule = async () => {
+    const handleSchedule = async () => {
     const res = await fetch('/api/schedule', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project_id: id, available_hours_per_day: 8 }),
+      body: JSON.stringify({ project_id: id }),
     });
     if (res.ok) {
       const result = await res.json();
       fetchProject();
       
       // Handle different response types
-      if (Array.isArray(result)) {
+      if (result.subtasks) {
         // Filter newly scheduled subtasks (those with dates)
-        const newlyScheduled = result.filter((st: Subtask) => st.date);
+        const newlyScheduled = result.subtasks.filter((st: Subtask) => st.date);
         setScheduledSubtasks(newlyScheduled);
-        setScheduleMessage('');
+        let message = '';
+        if (result.splitSubtasks && result.splitSubtasks.length > 0) {
+          message += `${result.splitSubtasks.length} subtask(s) were split across multiple days. `;
+        }
+        if (result.deadlineIssues && result.deadlineIssues.length > 0) {
+          message += `${result.deadlineIssues.length} subtask(s) could not be fully scheduled before their deadline.`;
+        }
+        setScheduleMessage(message || '');
         setIsScheduleDialogOpen(true);
       } else if (result.message) {
         // Show message for cases like "All subtasks are already scheduled"
@@ -158,7 +167,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const handleUpdateSubtask = async (updatedSubtask: { deadline: string | null; duration: number | null }) => {
+  const handleUpdateSubtask = async (updatedSubtask: { date: string | null; duration: number | null }) => {
     if (!editingSubtask) return;
 
     const res = await fetch(`/api/subtasks/${editingSubtask.id}`, {
@@ -172,6 +181,16 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
       setIsEditSubtaskDialogOpen(false);
       setEditingSubtask(null);
     }
+  };
+
+  const toggleSplitExpansion = (subtaskId: string) => {
+    const newExpanded = new Set(expandedSplits);
+    if (newExpanded.has(subtaskId)) {
+      newExpanded.delete(subtaskId);
+    } else {
+      newExpanded.add(subtaskId);
+    }
+    setExpandedSplits(newExpanded);
   };
 
   if (!project) {
@@ -263,9 +282,32 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
                   <div className="flex items-center space-x-2">
                     <div className="text-sm text-gray-600 flex items-center space-x-4">
                       {subtask.duration && <span>{subtask.duration} min</span>}
-                      <span>
-                        {subtask.date ? new Date(subtask.date).toLocaleDateString() : 'Not scheduled'}
-                      </span>
+                      <div className="flex flex-col">
+                        {subtask.scheduledDates && subtask.scheduledDates.length > 1 ? (
+                          <div>
+                            <button
+                              onClick={() => toggleSplitExpansion(subtask.id)}
+                              className="text-left hover:bg-gray-100 px-1 rounded text-xs font-medium flex items-center"
+                            >
+                              Split across {subtask.scheduledDates.length} days
+                              <span className="ml-1">{expandedSplits.has(subtask.id) ? '▼' : '▶'}</span>
+                            </button>
+                            {expandedSplits.has(subtask.id) && (
+                              <div className="ml-2 mt-1 space-y-1">
+                                {subtask.scheduledDates.map((s, index) => (
+                                  <div key={index} className="text-xs">
+                                    {new Date(s.date).toLocaleDateString()}: {s.duration} min
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span>
+                            {subtask.date ? new Date(subtask.date).toLocaleDateString() : 'Not scheduled'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <Button
                       variant="ghost"
@@ -440,16 +482,16 @@ function EditSubtaskForm({
   onCancel 
 }: { 
   subtask: Subtask; 
-  onSubmit: (data: { deadline: string | null; duration: number | null }) => void;
+  onSubmit: (data: { date: string | null; duration: number | null }) => void;
   onCancel: () => void;
 }) {
-  const [deadline, setDeadline] = useState(subtask.date ? subtask.date.split('T')[0] : '');
+  const [date, setDate] = useState(subtask.date ? subtask.date.split('T')[0] : '');
   const [duration, setDuration] = useState(subtask.duration?.toString() || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      deadline: deadline || null,
+      date: date || null,
       duration: duration ? parseFloat(duration) : null,
     });
   };
@@ -457,11 +499,11 @@ function EditSubtaskForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-1">Deadline</label>
+        <label className="block text-sm font-medium mb-1">Scheduled Date</label>
         <Input
           type="date"
-          value={deadline}
-          onChange={(e) => setDeadline(e.target.value)}
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
           className="border-black"
         />
       </div>

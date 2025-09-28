@@ -12,6 +12,7 @@ interface Subtask {
   duration: number | null;
   done: boolean;
   priority: number;
+  isSplitPart?: boolean;
   project: {
     id: string;
     title: string;
@@ -67,9 +68,14 @@ export default function Calendar() {
   };
 
   const getSubtasksForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     return subtasks
-      .filter(st => st.date && st.date.split('T')[0] === dateStr)
+      .filter(st => {
+        if (!st.date) return false;
+        const d = new Date(st.date);
+        const subtaskDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return subtaskDateStr === dateStr;
+      })
       .sort((a, b) => {
         if (a.done !== b.done) {
           return a.done ? 1 : -1; // unfinished first

@@ -28,13 +28,38 @@ export async function GET(request: Request) {
       return NextResponse.json(subtasks);
     } else {
       // Get all subtasks for user's projects
-      const subtasks = await prisma.subtask.findMany({
+      const rawSubtasks = await prisma.subtask.findMany({
         where: {
           project: { userId: session.user.id },
         },
         include: { project: true },
       });
-      return NextResponse.json(subtasks);
+
+      // Expand split subtasks
+      const expandedSubtasks = [];
+      for (const subtask of rawSubtasks) {
+        if (subtask.scheduledDates && Array.isArray(subtask.scheduledDates)) {
+          // Split subtask: create entry for each date
+          const schedules = subtask.scheduledDates as {date: string, duration: number}[];
+          for (const schedule of schedules) {
+            expandedSubtasks.push({
+              ...subtask,
+              date: schedule.date,
+              duration: schedule.duration,
+              isSplitPart: true,
+            });
+          }
+        } else if (subtask.date) {
+          // Regular scheduled subtask
+          expandedSubtasks.push({
+            ...subtask,
+            isSplitPart: false,
+          });
+        }
+        // Skip unscheduled subtasks
+      }
+
+      return NextResponse.json(expandedSubtasks);
     }
   } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error fetching subtasks' }, { status: 500 });
@@ -64,6 +89,7 @@ export async function POST(request: Request) {
         description,
         deadline: deadline ? new Date(deadline) : null,
         duration,
+        remainingDuration: duration,
         priority,
       },
     });

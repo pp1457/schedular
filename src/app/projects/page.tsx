@@ -13,6 +13,8 @@ interface Task {
   subtasks: {
     id: string;
     done: boolean;
+    date: string | null;
+    remainingDuration: number | null;
   }[];
 }
 
@@ -106,10 +108,33 @@ export default function AllTasksPage() {
     return 'Low';
   };
 
+  const getSchedulingStatus = (task: Task) => {
+    const subtasks = task.subtasks;
+    if (subtasks.length === 0) return 'No subtasks';
+
+    const allNotScheduled = subtasks.every(st => st.date === null);
+    if (allNotScheduled) return 'Not Scheduled yet';
+
+    const allFullyScheduled = subtasks.every(st => st.remainingDuration === 0 || st.remainingDuration === null);
+    if (allFullyScheduled) return 'Successfully Scheduled';
+
+    return 'Couldn\'t be scheduled within the deadline';
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Not Scheduled yet': return 'text-yellow-600 bg-yellow-100';
+      case 'Successfully Scheduled': return 'text-green-600 bg-green-100';
+      case 'Couldn\'t be scheduled within the deadline': return 'text-red-600 bg-red-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
   const renderTask = (task: Task) => {
     const completed = task.subtasks.filter(sub => sub.done).length;
     const total = task.subtasks.length;
     const progressPercentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const schedulingStatus = getSchedulingStatus(task);
     return (
       <Link key={task.id} href={`/projects/${task.id}`}>
         <div className="border border-black p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer h-48 flex flex-col">
@@ -119,6 +144,12 @@ export default function AllTasksPage() {
               Deadline: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}
             </p>
             <p className="text-sm text-gray-600">Priority: {getPriorityText(task.priority)}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Status:</span>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(schedulingStatus)}`}>
+                {schedulingStatus}
+              </span>
+            </div>
             {task.description && (
               <p className="text-sm text-gray-600 truncate">Description: {task.description}</p>
             )}
