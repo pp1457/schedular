@@ -43,7 +43,7 @@ export default function Availability() {
     const res = await fetch('/api/availability/overrides');
     if (res.ok) {
       const data = await res.json();
-      setOverrides(data);
+      setOverrides(data.map((o: Override) => ({ ...o, date: formatLocalDate(new Date(o.date)) })));
     }
   };
 
@@ -162,17 +162,23 @@ export default function Availability() {
                 type="number"
                 step="0.5"
                 min="0"
-                value={availability.find(a => a.dayOfWeek === index)?.hours || 8}
+                placeholder="8"
+                value={availability.find(a => a.dayOfWeek === index)?.hours?.toString() ?? ''}
                 onChange={(e) => {
-                  const hours = Math.max(0, parseFloat(e.target.value) || 0);
-                  setAvailability(prev => {
-                    const existing = prev.find(a => a.dayOfWeek === index);
-                    if (existing) {
-                      return prev.map(a => a.dayOfWeek === index ? { ...a, hours } : a);
-                    } else {
-                      return [...prev, { id: '', dayOfWeek: index, hours }];
-                    }
-                  });
+                  const value = e.target.value;
+                  if (value === '') {
+                    setAvailability(prev => prev.filter(a => a.dayOfWeek !== index));
+                  } else {
+                    const hours = Math.max(0, parseFloat(value) || 0);
+                    setAvailability(prev => {
+                      const existing = prev.find(a => a.dayOfWeek === index);
+                      if (existing) {
+                        return prev.map(a => a.dayOfWeek === index ? { ...a, hours } : a);
+                      } else {
+                        return [...prev, { id: '', dayOfWeek: index, hours }];
+                      }
+                    });
+                  }
                 }}
                 className="w-full text-sm md:text-base"
               />
@@ -262,7 +268,7 @@ export default function Availability() {
             <Button variant="outline" onClick={() => setSelectedDate(null)} className="w-full sm:w-auto">Cancel</Button>
             <Button onClick={updateOverride} className="w-full sm:w-auto">Save</Button>
             {selectedDate && getOverrideForDate(selectedDate) && (
-              <Button variant="destructive" onClick={() => deleteOverride(selectedDate.toISOString().split('T')[0])} className="w-full sm:w-auto">
+              <Button variant="destructive" onClick={() => deleteOverride(formatLocalDate(selectedDate))} className="w-full sm:w-auto">
                 Delete Override
               </Button>
             )}

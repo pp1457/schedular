@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
 import { SubtaskWithProject } from '@/lib/types';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 export default function Home() {
   const [subtasksByDate, setSubtasksByDate] = useState<Record<string, SubtaskWithProject[]>>({});
@@ -29,14 +30,14 @@ export default function Home() {
     for (let i = -7; i <= 30; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const dateStr = formatLocalDate(date);
       grouped[dateStr] = [];
     }
     
     subtasks.forEach(subtask => {
       if (subtask.date) {
-        const d = new Date(subtask.date);
-        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const d = parseLocalDate(subtask.date);
+        const dateStr = formatLocalDate(d);
         if (grouped[dateStr]) {
           grouped[dateStr].push(subtask);
         }
@@ -65,26 +66,17 @@ export default function Home() {
       <div className="space-y-4 md:space-y-6">
         {Object.entries(subtasksByDate)
           .filter(([dateStr, subtasks]) => {
-            const todayStr = (() => {
-              const d = new Date();
-              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            })();
+            const todayStr = formatLocalDate(new Date());
             return subtasks.length > 0 || dateStr === todayStr;
           })
           .sort(([a], [b]) => {
-            const today = (() => {
-              const d = new Date();
-              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            })();
-            const aDiff = new Date(a).getTime() - new Date(today).getTime();
-            const bDiff = new Date(b).getTime() - new Date(today).getTime();
+            const today = new Date();
+            const aDiff = parseLocalDate(a).getTime() - today.getTime();
+            const bDiff = parseLocalDate(b).getTime() - today.getTime();
             return aDiff - bDiff;
           })
           .map(([dateStr, subtasks]) => {
-            const todayStr = (() => {
-              const d = new Date();
-              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            })();
+            const todayStr = formatLocalDate(new Date());
             const isToday = dateStr === todayStr;
             return (
             <div key={dateStr} className="border border-black rounded-lg p-4 md:p-6">

@@ -85,8 +85,14 @@ export default function AllTasksPage() {
       const sortedMonths = Object.keys(groupedDone).sort((a, b) => {
         if (a === 'No Deadline') return 1;
         if (b === 'No Deadline') return -1;
-        const aDate = new Date(a);
-        const bDate = new Date(b);
+        // Parse month year string back to date for comparison
+        const parseMonthYear = (str: string) => {
+          const [month, year] = str.split(' ');
+          const date = new Date(parseInt(year), new Date(`${month} 1`).getMonth(), 1);
+          return date;
+        };
+        const aDate = parseMonthYear(a);
+        const bDate = parseMonthYear(b);
         return aDate.getTime() - bDate.getTime();
       });
       
