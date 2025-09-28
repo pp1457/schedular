@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Edit, Trash2, Play, Pencil } from 'lucide-react';
-import { formatDisplayDate, parseDateFromDB } from '@/lib/utils';
+import { formatDisplayDate, parseDateFromDB, getUserTimezone } from '@/lib/utils';
 import { BaseSubtask, Project } from '@/lib/types';
 
 interface ScheduledSubtask extends BaseSubtask {
@@ -80,10 +80,11 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
     const handleSchedule = async () => {
     setIsScheduling(true);
     try {
+      const timezone = getUserTimezone();
       const res = await fetch('/api/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: id }),
+        body: JSON.stringify({ project_id: id, timezone }),
       });
       if (res.ok) {
         const result = await res.json();
@@ -390,7 +391,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
                   </div>
                   <div className="flex items-center space-x-2">
                     <div className="text-sm text-gray-600 flex items-center space-x-4">
-                      {subtask.duration && <span>{subtask.duration} min</span>}
+                      <span>{subtask.duration !== null && subtask.duration !== undefined ? `${subtask.duration} min` : '0 min'}</span>
                       <div className="flex flex-col">
                         {subtask.scheduledDates && subtask.scheduledDates.length > 1 ? (
                           <div>
@@ -405,7 +406,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
                               <div className="ml-2 mt-1 space-y-1">
                                 {subtask.scheduledDates.map((s, index) => (
                                   <div key={index} className="text-xs">
-                                    {formatDisplayDate(s.date)}: {s.duration} min
+                                    {formatDisplayDate(s.date)}: {s.duration !== null && s.duration !== undefined ? `${s.duration} min` : '0 min'}
                                   </div>
                                 ))}
                               </div>

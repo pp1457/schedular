@@ -28,7 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ date
     const tasksForDate = [];
     for (const subtask of allSubtasks) {
       // Compare canonical DB date (YYYY-MM-DD) to the target local date
-      if (subtask.date && formatDBDate(subtask.date) === formatDBDate(targetDate)) {
+      if (subtask.date && subtask.date.toISOString().split('T')[0] === formatDBDate(targetDate)) {
         // Regular scheduled subtask
         tasksForDate.push(subtask);
       } else if (subtask.scheduledDates && Array.isArray(subtask.scheduledDates)) {

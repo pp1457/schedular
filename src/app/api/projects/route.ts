@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { parseUTCDate } from '@/lib/utils';
+import { parseLocalDate } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -32,8 +32,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('Session user ID:', session.user.id);
-
     const { title, description, category, deadline, priority } = await request.json();
     
     // Check if user exists
@@ -46,7 +44,7 @@ export async function POST(request: Request) {
         title,
         description,
         category,
-        deadline: deadline ? parseUTCDate(deadline) : null,
+        deadline: deadline ? parseLocalDate(deadline) : null,
         priority,
         userId: user ? session.user.id : null,
       },

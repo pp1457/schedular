@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,43 +19,38 @@ interface Task {
 }
 
 interface TaskFormProps {
-  onSubmit: (task: Omit<Task, 'id' | 'subtasks'> & { subtasks: Array<Omit<BaseSubtask, 'date' | 'done'> & { id: string }> }) => void;
+  onSubmit: (task: Omit<Task, 'id' | 'subtasks'> & { subtasks: Array<Omit<BaseSubtask, 'date' | 'done' | 'deadline'> & { id: string }> }) => void;
 }
 
 export function TaskForm({ onSubmit }: TaskFormProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
-  const [deadline, setDeadline] = useState('');
+  const [deadline, setDeadline] = useState(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
-  const [subtasks, setSubtasks] = useState<Array<Omit<BaseSubtask, 'date' | 'done'> & { id: string }>>([]);
+  const [subtasks, setSubtasks] = useState<Array<Omit<BaseSubtask, 'date' | 'done' | 'deadline'> & { id: string }>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Update all subtasks' deadlines when project deadline changes
-  useEffect(() => {
-    setSubtasks(prevSubtasks => 
-      prevSubtasks.map(subtask => ({
-        ...subtask,
-        deadline: deadline || null
-      }))
-    );
-  }, [deadline]);
+
 
   const addSubtask = () => {
-    console.log('Adding subtask, current count:', subtasks.length);
     setSubtasks([...subtasks, { 
       id: Date.now().toString(),
       description: '', 
       duration: 0, 
-      deadline: deadline || null, 
       priority: 2,
       remainingDuration: 0,
       order: subtasks.length
     }]);
-    console.log('Subtask added, new count should be:', subtasks.length + 1);
   };
 
-  const updateSubtask = (index: number, field: keyof Omit<BaseSubtask, 'date' | 'done'>, value: string | number | null) => {
+  const updateSubtask = (index: number, field: keyof Omit<BaseSubtask, 'date' | 'done' | 'deadline'>, value: string | number | null) => {
     const newSubtasks = [...subtasks];
     newSubtasks[index] = { ...newSubtasks[index], [field]: value };
     setSubtasks(newSubtasks);
@@ -77,14 +72,11 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
         .map(sub => ({
           id: sub.id,
           description: sub.description.trim(),
-          deadline: sub.deadline,
           duration: sub.duration,
           remainingDuration: sub.remainingDuration,
           priority: sub.priority,
           order: sub.order,
         }));
-      
-      console.log('Submitting task with subtasks:', taskSubtasks);
       
       await onSubmit({
         title: title.trim(),
@@ -99,7 +91,13 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
       setTitle('');
       setDescription('');
       setCategory('');
-      setDeadline('');
+      setDeadline(() => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      });
       setPriority('Medium');
       setSubtasks([]);
     } finally {
@@ -161,7 +159,6 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
       <div>
         <label className="block text-sm font-medium mb-2">Subtasks ({subtasks.length})</label>
                 {subtasks.map((sub, index) => {
-                  console.log('Rendering subtask:', sub.id, sub.description);
                   return (
                     <div key={sub.id} className="border border-gray-200 rounded p-3 space-y-2 mb-3">
                       <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
@@ -172,13 +169,6 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
                           className="flex-1 border-black text-base"
                         />
                         <div className="flex space-x-2">
-                          <Input
-                            type="date"
-                            placeholder="Deadline"
-                            value={sub.deadline || ''}
-                            onChange={(e) => updateSubtask(index, 'deadline', e.target.value)}
-                            className="flex-1 border-black text-base"
-                          />
                           <Input
                             type="number"
                             placeholder="Minutes"

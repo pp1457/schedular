@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createSecureResponse, createErrorResponse } from '@/lib/security';
 import { formatDBDate, parseLocalDate } from '@/lib/utils';
+import { formatInTimeZone } from 'date-fns-tz';
 
 const prisma = new PrismaClient();
 
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
       return createErrorResponse('Unauthorized', 401);
     }
 
-    const { availability } = await request.json(); // array of { dayOfWeek, hours }
+    const { availability, timezone = 'UTC' } = await request.json(); // array of { dayOfWeek, hours }
 
     // Delete existing
     await prisma.userAvailability.deleteMany({
@@ -118,7 +119,9 @@ export async function POST(request: Request) {
           const maxDays = 60; // Look ahead up to 60 days
           
           for (let i = 0; i < maxDays && availableDays.length < 30; i++) {
-            const availableMinutes = data.find((d: { dayOfWeek: number; hours: number }) => d.dayOfWeek === currentDate.getDay())?.hours * 60 || 0;
+            const dayOfWeek = parseInt(formatInTimeZone(currentDate, timezone, 'i')) % 7; // 0=Sunday, 6=Saturday
+            const avail = data.find((d: { dayOfWeek: number; hours: number }) => d.dayOfWeek === dayOfWeek);
+            const availableMinutes = avail ? avail.hours * 60 : 0 * 60; // default 0 hours if not set
             if (availableMinutes > 0) {
               // Check if this day already has some scheduling from other subtasks
               const dateStr = formatDBDate(currentDate);
@@ -169,6 +172,7 @@ export async function POST(request: Request) {
 
           if (scheduledDates.length > 0) {
             const lastDate = scheduledDates[scheduledDates.length - 1].date;
+
             await prisma.subtask.update({
               where: { id: subtask.id },
               data: { 

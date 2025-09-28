@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { parseUTCDate, formatDBDate } from '@/lib/utils';
+import { parseLocalDate, formatDBDate } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -13,14 +13,39 @@ async function reScheduleFromDate(userId: string, startDate: Date) {
     include: { subtasks: true },
   });
 
-  // Unschedule all subtasks from start_date onwards
-  await prisma.subtask.updateMany({
+  // Unschedule all subtasks from start_date onwards, preserving past scheduling
+  const subtasksToUnschedule = await prisma.subtask.findMany({
     where: {
       project: { userId },
       date: { gte: startDate },
     },
-    data: { date: null, scheduledDates: [], remainingDuration: null },
   });
+
+  for (const subtask of subtasksToUnschedule) {
+    if (subtask.scheduledDates) {
+      const dates = JSON.parse(JSON.stringify(subtask.scheduledDates)) as {date: string, duration: number}[];
+      const keptDates = dates.filter(entry => parseLocalDate(entry.date) < startDate);
+      const sumKept = keptDates.reduce((sum, entry) => sum + entry.duration, 0);
+      const totalDuration = subtask.duration ?? 0;
+      const newRemaining = Math.max(0, totalDuration - sumKept);
+      const lastDate = keptDates.length > 0 ? parseLocalDate(keptDates[keptDates.length - 1].date) : null;
+
+      await prisma.subtask.update({
+        where: { id: subtask.id },
+        data: {
+          date: lastDate,
+          scheduledDates: keptDates.length > 0 ? keptDates : [],
+          remainingDuration: newRemaining,
+        },
+      });
+    } else {
+      // No scheduledDates, just set to null
+      await prisma.subtask.update({
+        where: { id: subtask.id },
+        data: { date: null, scheduledDates: [], remainingDuration: subtask.duration ?? 0 },
+      });
+    }
+  }
 
   // Get availability
   const availability = await prisma.userAvailability.findMany({
@@ -80,7 +105,7 @@ async function reScheduleFromDate(userId: string, startDate: Date) {
         if (subtask.scheduledDates) {
           const dates = JSON.parse(JSON.stringify(subtask.scheduledDates)) as {date: string, duration: number}[];
           for (const entry of dates) {
-            if (parseUTCDate(entry.date) >= startDate) {
+            if (parseLocalDate(entry.date) >= startDate) {
               dailyUsedMinutes[entry.date] = (dailyUsedMinutes[entry.date] || 0) + entry.duration;
             }
           }
@@ -151,10 +176,11 @@ async function reScheduleFromDate(userId: string, startDate: Date) {
 
       if (scheduledDates.length > 0) {
         const lastDate = scheduledDates[scheduledDates.length - 1].date;
+
         await prisma.subtask.update({
           where: { id: subtask.id },
           data: { 
-            date: parseUTCDate(lastDate), 
+            date: parseLocalDate(lastDate), 
             remainingDuration: remaining - (remaining - remainingToSchedule), 
             scheduledDates 
           },
@@ -192,7 +218,7 @@ export async function POST(request: Request) {
 
     const data = {
       userId: session.user.id,
-      date: parseUTCDate(date),
+  date: parseLocalDate(date),
       hours: hours,
     };
 
@@ -201,15 +227,15 @@ export async function POST(request: Request) {
       where: {
         userId_date: {
           userId: session.user.id,
-          date: parseUTCDate(date),
+          date: parseLocalDate(date),
         },
       },
       update: { hours },
       create: data,
     });
 
-    // Re-schedule tasks from this date onwards
-    await reScheduleFromDate(session.user.id, parseUTCDate(date));
+  // Re-schedule tasks from this date onwards
+  await reScheduleFromDate(session.user.id, parseLocalDate(date));
 
     return NextResponse.json(override);
   } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -229,12 +255,12 @@ export async function DELETE(request: Request) {
     await prisma.userAvailabilityOverride.deleteMany({
       where: {
         userId: session.user.id,
-        date: parseUTCDate(date),
+        date: parseLocalDate(date),
       },
     });
 
     // Re-schedule tasks from this date onwards
-    await reScheduleFromDate(session.user.id, parseUTCDate(date));
+  await reScheduleFromDate(session.user.id, parseLocalDate(date));
 
     return NextResponse.json({ message: 'Override deleted' });
   } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars

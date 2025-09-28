@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { parseUTCDate } from '@/lib/utils';
+import { parseLocalDate, formatDBDate } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -21,7 +21,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
-    return NextResponse.json(project);
+    const normalized = {
+      ...project,
+      deadline: project.deadline ? project.deadline.toISOString().split('T')[0] : null,
+      subtasks: project.subtasks.map(st => ({
+        ...st,
+        date: st.date ? st.date.toISOString().split('T')[0] : null,
+        scheduledDates: Array.isArray(st.scheduledDates)
+          ? (st.scheduledDates as {date: string, duration: number}[]).map((entry) => ({ ...entry, date: formatDBDate(entry.date) }))
+          : st.scheduledDates,
+      })),
+    };
+    return NextResponse.json(normalized);
   } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
     return NextResponse.json({ error: 'Error fetching project' }, { status: 500 });
   }
@@ -42,7 +53,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         title,
         description,
         category,
-        deadline: deadline ? parseUTCDate(deadline) : null,
+  deadline: deadline ? parseLocalDate(deadline) : null,
         priority,
       },
     });

@@ -29,7 +29,6 @@ function Header() {
     subtasks: Array<{
       id: string;
       description: string;
-      deadline: string | null;
       duration: number | null;
       priority: number;
     }>;
@@ -56,26 +55,21 @@ function Header() {
         return;
       }
       const newProject = await res.json();
-      console.log('Project created:', newProject);
 
       // Create subtasks
-      console.log('Creating subtasks:', task.subtasks);
       const subtasksToCreate = task.subtasks.length > 0 ? task.subtasks : [{
         description: task.title,
-        deadline: task.deadline,
         duration: 30,
         priority: task.priority,
       }];
 
       for (const sub of subtasksToCreate) {
-        console.log('Creating subtask:', sub);
         const subRes = await fetch('/api/subtasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             projectId: newProject.id,
             description: sub.description,
-            deadline: sub.deadline,
             duration: sub.duration,
             priority: sub.priority,
           }),
@@ -86,7 +80,6 @@ function Header() {
           alert('Failed to create subtask: ' + subError);
           return;
         }
-        console.log('Subtask creation response:', subRes.status, await subRes.text());
       }
 
       // Trigger refetch for All Tasks page

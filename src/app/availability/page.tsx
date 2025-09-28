@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { formatLocalDate, formatDisplayDate, formatDBDate } from '@/lib/utils';
+import { formatLocalDate, formatDisplayDate, formatDBDate, getUserTimezone } from '@/lib/utils';
 
 interface Availability {
   id: string;
@@ -50,10 +50,11 @@ export default function Availability() {
 
   const updateAvailability = async () => {
     const data = availability.map(a => ({ dayOfWeek: a.dayOfWeek, hours: a.hours }));
+    const timezone = getUserTimezone();
     const res = await fetch('/api/availability', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ availability: data }),
+      body: JSON.stringify({ availability: data, timezone }),
     });
     if (res.ok) {
       alert('Availability updated');
@@ -62,7 +63,7 @@ export default function Availability() {
       await fetch('/api/reschedule', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ start_date: today })
+        body: JSON.stringify({ start_date: today, timezone })
       });
     }
   };
@@ -79,11 +80,12 @@ export default function Availability() {
       fetchOverrides();
       setSelectedDate(null);
       setSelectedHours('');
-      // Re-schedule from the modified date
+      // Re-schedule from the overridden date
+      const timezone = getUserTimezone();
       await fetch('/api/reschedule', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ start_date: formatDBDate(selectedDate) })
+        body: JSON.stringify({ start_date: formatDBDate(selectedDate), timezone })
       });
     }
   };
@@ -96,11 +98,12 @@ export default function Availability() {
     });
     if (res.ok) {
       fetchOverrides();
-      // Re-schedule from the deleted date
+      // Re-schedule from the deleted override date
+      const timezone = getUserTimezone();
       await fetch('/api/reschedule', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ start_date: date })
+        body: JSON.stringify({ start_date: date, timezone })
       });
     }
   };
@@ -133,7 +136,7 @@ export default function Availability() {
     if (override) return override.hours;
     const dayOfWeek = date.getDay();
     const avail = availability.find(a => a.dayOfWeek === dayOfWeek);
-    return avail ? avail.hours : 8;
+    return avail ? avail.hours : 0;
   };
 
   const days = getDaysInMonth(currentDate);
@@ -163,7 +166,7 @@ export default function Availability() {
                 type="number"
                 step="0.5"
                 min="0"
-                placeholder="8"
+                placeholder="0"
                 value={availability.find(a => a.dayOfWeek === index)?.hours?.toString() ?? ''}
                 onChange={(e) => {
                   const value = e.target.value;

@@ -107,7 +107,7 @@ export default function Home() {
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {subtask.duration != null && (
                             <span className="text-sm md:text-base font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
-                              {subtask.duration} min
+                              {subtask.duration ? `${subtask.duration} min` : 'min'}
                             </span>
                           )}
                           <button

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { parseUTCDate } from '@/lib/utils';
+import { parseLocalDate } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -26,7 +26,11 @@ export async function GET(request: Request) {
       const subtasks = await prisma.subtask.findMany({
         where: { projectId },
       });
-      return NextResponse.json(subtasks);
+      const normalizedSubtasks = subtasks.map(st => ({
+        ...st,
+        date: st.date ? st.date.toISOString().split('T')[0] : null,
+      }));
+      return NextResponse.json(normalizedSubtasks);
     } else {
       // Get all subtasks for user's projects
       const rawSubtasks = await prisma.subtask.findMany({
@@ -54,6 +58,7 @@ export async function GET(request: Request) {
           // Regular scheduled subtask
           expandedSubtasks.push({
             ...subtask,
+            date: subtask.date.toISOString().split('T')[0],
             isSplitPart: false,
           });
         }
@@ -97,7 +102,7 @@ export async function POST(request: Request) {
       data: {
         projectId,
         description,
-        deadline: deadline ? parseUTCDate(deadline) : null,
+        deadline: deadline ? parseLocalDate(deadline) : null,
         duration,
         remainingDuration: duration,
         priority,

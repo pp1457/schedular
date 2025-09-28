@@ -169,7 +169,7 @@ export default function Calendar() {
                   className="w-4 h-4 flex-shrink-0"
                 />
                 <Link href={`/projects/${sub.project.id}`} className={`hover:underline flex-1 text-sm ${sub.done ? 'line-through text-gray-500' : ''}`}>
-                  {sub.description} ({sub.duration} min) - {sub.project.title}
+                  {sub.description} ({sub.duration ? `${sub.duration} min` : 'min'}) - {sub.project.title}
                 </Link>
               </div>
             ))}
