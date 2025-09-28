@@ -30,6 +30,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
   const [isScheduling, setIsScheduling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
+  const [draggedSubtaskId, setDraggedSubtaskId] = useState<string | null>(null);
   const router = useRouter();
 
   const fetchProject = useCallback(async () => {
@@ -183,6 +184,59 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, subtaskId: string) => {
+    setDraggedSubtaskId(subtaskId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetSubtaskId: string) => {
+    e.preventDefault();
+    if (!draggedSubtaskId || draggedSubtaskId === targetSubtaskId || !project) return;
+
+    const draggedIndex = project.subtasks.findIndex(st => st.id === draggedSubtaskId);
+    const targetIndex = project.subtasks.findIndex(st => st.id === targetSubtaskId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newSubtasks = [...project.subtasks];
+    const [draggedSubtask] = newSubtasks.splice(draggedIndex, 1);
+    newSubtasks.splice(targetIndex, 0, draggedSubtask);
+
+    // Update order values
+    const updatedSubtasks = newSubtasks.map((st, index) => ({
+      ...st,
+      order: index
+    }));
+
+    setProject({ ...project, subtasks: updatedSubtasks });
+    setDraggedSubtaskId(null);
+
+    // Update order in database
+    try {
+      await Promise.all(
+        updatedSubtasks.map((st, index) =>
+          fetch(`/api/subtasks/${st.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order: index }),
+          })
+        )
+      );
+    } catch {
+      // Revert on error
+      fetchProject();
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedSubtaskId(null);
+  };
+
   const toggleSplitExpansion = (subtaskId: string) => {
     const newExpanded = new Set(expandedSplits);
     if (newExpanded.has(subtaskId)) {
@@ -291,16 +345,35 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
             <div className="space-y-2">
               {project.subtasks
                 .sort((a, b) => {
-                  // Sort by date first (null dates last), then by done status
-                  if (a.date && b.date) {
-                    return new Date(a.date).getTime() - new Date(b.date).getTime();
+                  // Sort by order first (null orders last), then by date, then by ID
+                  if (a.order !== null && b.order !== null) {
+                    return a.order - b.order;
                   }
-                  if (a.date && !b.date) return -1;
-                  if (!a.date && b.date) return 1;
-                  return a.done ? 1 : -1;
+                  if (a.order !== null && b.order === null) return -1;
+                  if (a.order === null && b.order !== null) return 1;
+                  
+                  // If both orders are null, sort by date
+                  if (a.date && b.date) {
+                    const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
+                    if (dateCompare !== 0) return dateCompare;
+                  } else if (a.date && !b.date) {
+                    return -1;
+                  } else if (!a.date && b.date) {
+                    return 1;
+                  }
+                  // For same date or both null, sort by ID for stable ordering
+                  return a.id.localeCompare(b.id);
                 })
                 .map(subtask => (
-                <div key={subtask.id} className="flex items-center justify-between p-2 border border-gray-200 rounded">
+                <div 
+                  key={subtask.id} 
+                  className={`flex items-center justify-between p-2 border border-gray-200 rounded cursor-move ${draggedSubtaskId === subtask.id ? 'opacity-50' : ''}`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, subtask.id)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, subtask.id)}
+                  onDragEnd={handleDragEnd}
+                >
                   <div className="flex items-center space-x-2 flex-1">
                     <input
                       type="checkbox"

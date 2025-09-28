@@ -124,7 +124,9 @@ function Header() {
     return (
       <header className="border-b border-black p-4">
         <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold font-merriweather">Schedular</h1>
+          <Link href="/">
+            <h1 className="text-2xl font-bold font-merriweather">Schedular</h1>
+          </Link>
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
             <Link href="/auth/signin">
               <Button variant="outline" className="border-black text-black hover:bg-gray-100 w-full sm:w-auto">
@@ -145,7 +147,9 @@ function Header() {
   return (
     <header className="border-b border-black p-4">
       <div className="container mx-auto flex justify-between items-center">
-        <h1 className="text-2xl font-bold font-merriweather">Schedular</h1>
+        <Link href="/">
+          <h1 className="text-2xl font-bold font-merriweather">Schedular</h1>
+        </Link>
         
         {/* Desktop Navigation */}
         <div className="hidden md:flex space-x-4">

@@ -31,6 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       remainingDuration?: number;
       done?: boolean;
       priority?: number;
+      order?: number;
     } = {};
     if (body.description !== undefined) data.description = body.description;
     if (body.date !== undefined) {
@@ -53,6 +54,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     if (body.done !== undefined) data.done = body.done;
     if (body.priority !== undefined) data.priority = body.priority;
+    if (body.order !== undefined) data.order = body.order;
 
     const updatedSubtask = await prisma.subtask.update({
       where: { id },

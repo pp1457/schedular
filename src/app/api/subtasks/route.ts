@@ -85,6 +85,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
+    // Get the next order number
+    const lastSubtask = await prisma.subtask.findFirst({
+      where: { projectId },
+      orderBy: { order: 'desc' },
+    });
+    const nextOrder = lastSubtask ? (lastSubtask.order ?? 0) + 1 : 0;
+
     const newSubtask = await prisma.subtask.create({
       data: {
         projectId,
@@ -93,6 +100,7 @@ export async function POST(request: Request) {
         duration,
         remainingDuration: duration,
         priority,
+        order: nextOrder,
       },
     });
     return NextResponse.json(newSubtask, { status: 201 });

@@ -49,7 +49,8 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
       duration: 0, 
       deadline: deadline || null, 
       priority: 2,
-      remainingDuration: 0
+      remainingDuration: 0,
+      order: subtasks.length
     }]);
     console.log('Subtask added, new count should be:', subtasks.length + 1);
   };
@@ -80,6 +81,7 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
           duration: sub.duration,
           remainingDuration: sub.remainingDuration,
           priority: sub.priority,
+          order: sub.order,
         }));
       
       console.log('Submitting task with subtasks:', taskSubtasks);

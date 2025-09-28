@@ -84,6 +84,7 @@ model Subtask {
   scheduledDates Json? // Array of {date: string, duration: number}
   done      Boolean  @default(false)
   priority  Int      @default(2)
+  order     Int?     @default(0)
 }
 
 model UserAvailability {

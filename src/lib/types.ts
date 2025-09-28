@@ -10,6 +10,7 @@ export interface BaseSubtask {
   scheduledDates?: {date: string, duration: number}[];
   done: boolean;
   priority: number;
+  order: number | null;
 }
 
 export interface SubtaskWithProject extends BaseSubtask {
