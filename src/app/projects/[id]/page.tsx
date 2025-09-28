@@ -9,28 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Edit, Trash2, Play, Pencil } from 'lucide-react';
+import { BaseSubtask, Project } from '@/lib/types';
 
-interface Subtask {
-  id: string;
-  description: string;
-  done: boolean;
-  date: string | null;
-  duration: number | null;
-  remainingDuration: number | null;
-  scheduledDates?: {date: string, duration: number}[];
-}
-
-interface Project {
-  id: string;
-  title: string;
-  description?: string;
-  category: string | null;
-  deadline: string | null;
-  priority: number;
-  subtasks: Subtask[];
-}
-
-interface ScheduledSubtask extends Subtask {
+interface ScheduledSubtask extends BaseSubtask {
   date: string;
 }
 
@@ -43,7 +24,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
   const [scheduledSubtasks, setScheduledSubtasks] = useState<ScheduledSubtask[]>([]);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState<string>('');
-  const [editingSubtask, setEditingSubtask] = useState<Subtask | null>(null);
+  const [editingSubtask, setEditingSubtask] = useState<BaseSubtask | null>(null);
   const [isEditSubtaskDialogOpen, setIsEditSubtaskDialogOpen] = useState(false);
   const [expandedSplits, setExpandedSplits] = useState<Set<string>>(new Set());
   const [isScheduling, setIsScheduling] = useState(false);
@@ -109,7 +90,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
         // Handle different response types
         if (result.subtasks) {
           // Filter newly scheduled subtasks (those with dates)
-          const newlyScheduled = result.subtasks.filter((st: Subtask) => st.date);
+          const newlyScheduled = result.subtasks.filter((st: BaseSubtask) => st.date);
           setScheduledSubtasks(newlyScheduled);
           let message = '';
           if (result.splitSubtasks && result.splitSubtasks.length > 0) {
@@ -170,7 +151,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const handleEditSubtask = (subtask: Subtask) => {
+  const handleEditSubtask = (subtask: BaseSubtask) => {
     setEditingSubtask(subtask);
     setIsEditSubtaskDialogOpen(true);
   };
@@ -223,18 +204,14 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
     const subtasks = project.subtasks;
     if (subtasks.length === 0) return 'No subtasks';
 
-    const allNotScheduled = subtasks.every(st => st.date === null);
-    if (allNotScheduled) return 'Unscheduled';
+    const isScheduled = (st: BaseSubtask) => {
+      return st.date !== null || (st.scheduledDates && Array.isArray(st.scheduledDates) && st.scheduledDates.length > 0);
+    };
 
-    // For tasks with no deadline, don't show "Partial" - only "Scheduled" or "Unscheduled"
-    if (!project.deadline) {
-      const allFullyScheduled = subtasks.every(st => st.remainingDuration === 0);
-      return allFullyScheduled ? 'Scheduled' : 'Unscheduled';
-    }
-
-    const allFullyScheduled = subtasks.every(st => st.remainingDuration === 0);
-    if (allFullyScheduled) return 'Scheduled';
-
+    const scheduledCount = subtasks.filter(isScheduled).length;
+    
+    if (scheduledCount === 0) return 'Unscheduled';
+    if (scheduledCount === subtasks.length) return 'Scheduled';
     return 'Partially Scheduled';
   };
 
@@ -255,9 +232,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
         <div className="flex justify-between items-start mb-4">
           <div>
             <h2 className="text-3xl font-bold mb-2">{project.title}</h2>
-            {project.description && (
-              <p className="text-gray-600 mb-2">{project.description}</p>
-            )}
+            <p className="text-gray-600 mb-2">{project.description || ''}</p>
           </div>
           <div className="flex space-x-2">
             <Button variant="outline" size="sm" onClick={handleSchedule} className="border-black text-black hover:bg-gray-100" loading={isScheduling} disabled={isScheduling}>
@@ -551,7 +526,7 @@ function EditSubtaskForm({
   onSubmit, 
   onCancel 
 }: { 
-  subtask: Subtask; 
+  subtask: BaseSubtask; 
   onSubmit: (data: { date: string | null; duration: number | null }) => void;
   onCancel: () => void;
 }) {

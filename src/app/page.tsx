@@ -2,25 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-interface Subtask {
-  id: string;
-  description: string;
-  date: string | null;
-  duration: number | null;
-  done: boolean;
-  priority: number;
-  isSplitPart?: boolean;
-  project: {
-    id: string;
-    title: string;
-    priority: number;
-    deadline: string | null;
-  };
-}
+import { Check } from 'lucide-react';
+import { SubtaskWithProject } from '@/lib/types';
 
 export default function Home() {
-  const [subtasksByDate, setSubtasksByDate] = useState<Record<string, Subtask[]>>({});
+  const [subtasksByDate, setSubtasksByDate] = useState<Record<string, SubtaskWithProject[]>>({});
 
   useEffect(() => {
     fetchSubtasks();
@@ -32,10 +18,10 @@ export default function Home() {
       console.error('Failed to fetch subtasks:', await res.text());
       return;
     }
-    const subtasks: Subtask[] = await res.json();
+    const subtasks: SubtaskWithProject[] = await res.json();
     
     // Group subtasks by date
-    const grouped: Record<string, Subtask[]> = {};
+    const grouped: Record<string, SubtaskWithProject[]> = {};
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -123,32 +109,50 @@ export default function Home() {
                       return a.priority - b.priority;
                     })
                     .map((subtask) => (
-                    <div key={subtask.id} className={`flex items-center justify-between p-3 md:p-2 border border-gray-200 rounded ${subtask.done ? 'bg-gray-50' : 'bg-white'}`}>
-                      <div className="flex-1 min-w-0">
-                        <p className={`font-medium text-sm md:text-base ${subtask.done ? 'line-through text-gray-500' : 'text-gray-900'}`}>{subtask.description}</p>
-                        <p className="text-xs md:text-sm text-gray-600">
-                          From: <Link href={`/projects/${subtask.project.id}`} className="text-gray-900 border-b border-gray-400 hover:border-gray-600 hover:text-black">
+                    <div key={subtask.id} className={`p-3 md:p-4 border border-gray-200 rounded ${subtask.done ? 'bg-gray-50' : 'bg-white'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <p className={`font-medium text-sm md:text-base flex-1 ${subtask.done ? 'line-through text-gray-500' : 'text-gray-900'}`}>{subtask.description}</p>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {subtask.duration != null && (
+                            <span className="text-sm md:text-base font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                              {subtask.duration} min
+                            </span>
+                          )}
+                          <button
+                            onClick={async () => {
+                              await fetch(`/api/subtasks/${subtask.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ done: !subtask.done }),
+                              });
+                              fetchSubtasks(); // Refresh data
+                            }}
+                            className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium transition-colors w-20 justify-center ${
+                              subtask.done
+                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs md:text-sm text-gray-600">
+                        <div>
+                          <span className="font-medium">Deadline:</span> {subtask.project.deadline ? new Date(subtask.project.deadline).toLocaleDateString() : 'No deadline'}
+                        </div>
+                        <div>
+                          <span className="font-medium">Priority:</span> {getPriorityText(subtask.project.priority)}
+                        </div>
+                        <div>
+                          <span className="font-medium">Status:</span> {subtask.done ? 'Completed' : 'Pending'}
+                        </div>
+                        <div>
+                          <span className="font-medium">From:</span> <Link href={`/projects/${subtask.project.id}`} className="text-gray-900 border-b border-gray-400 hover:border-gray-600 hover:text-black">
                             {subtask.project.title}
                           </Link>
-                        </p>
-                        <p className="text-xs md:text-sm text-gray-600">
-                          Priority: {getPriorityText(subtask.priority)}
-                          {subtask.duration != null && ` • ${subtask.duration} min`}
-                        </p>
+                        </div>
                       </div>
-                      <input
-                        type="checkbox"
-                        checked={subtask.done}
-                        onChange={async () => {
-                          await fetch(`/api/subtasks/${subtask.id}`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ done: !subtask.done }),
-                          });
-                          fetchSubtasks(); // Refresh data
-                        }}
-                        className="ml-3 md:ml-4 w-5 h-5 md:w-6 md:h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 flex-shrink-0"
-                      />
                     </div>
                   ))}
                 </div>

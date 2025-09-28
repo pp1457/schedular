@@ -5,23 +5,10 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-interface Subtask {
-  id: string;
-  description: string;
-  date: string | null;
-  duration: number | null;
-  done: boolean;
-  priority: number;
-  isSplitPart?: boolean;
-  project: {
-    id: string;
-    title: string;
-  };
-}
+import { SubtaskMinimal } from '@/lib/types';
 
 export default function Calendar() {
-  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [subtasks, setSubtasks] = useState<SubtaskMinimal[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 

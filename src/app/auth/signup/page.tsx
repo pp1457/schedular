@@ -53,7 +53,7 @@ export default function SignUp() {
 
   return (
     <div className="min-h-screen flex items-start justify-center bg-gray-50 pt-16">
-      <div className="max-w-md w-full space-y-8 mt-8">
+      <div className="max-w-sm md:max-w-md w-full space-y-8 mt-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Create your account
@@ -93,7 +93,7 @@ export default function SignUp() {
                 type="password"
                 autoComplete="new-password"
                 required
-                placeholder="Password (min 8 chars, uppercase, lowercase, number, special)"
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}

@@ -130,18 +130,14 @@ export default function AllTasksPage() {
     const subtasks = task.subtasks;
     if (subtasks.length === 0) return 'No subtasks';
 
-    const allNotScheduled = subtasks.every(st => st.date === null);
-    if (allNotScheduled) return 'Unscheduled';
+    const isScheduled = (st: { date: string | null }) => {
+      return st.date !== null;
+    };
 
-    // For tasks with no deadline, don't show "Partial" - only "Scheduled" or "Unscheduled"
-    if (!task.deadline) {
-      const allFullyScheduled = subtasks.every(st => st.remainingDuration === 0);
-      return allFullyScheduled ? 'Scheduled' : 'Unscheduled';
-    }
-
-    const allFullyScheduled = subtasks.every(st => st.remainingDuration === 0);
-    if (allFullyScheduled) return 'Scheduled';
-
+    const scheduledCount = subtasks.filter(isScheduled).length;
+    
+    if (scheduledCount === 0) return 'Unscheduled';
+    if (scheduledCount === subtasks.length) return 'Scheduled';
     return 'Partially Scheduled';
   };
 
@@ -161,22 +157,22 @@ export default function AllTasksPage() {
     const schedulingStatus = getSchedulingStatus(task);
     return (
       <Link key={task.id} href={`/projects/${task.id}`}>
-        <div className="border border-black p-4 md:p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer h-auto md:h-56 flex flex-col">
+        <div className="border border-black p-4 md:p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer h-auto md:h-64 flex flex-col">
           <h2 className="text-lg md:text-xl font-semibold mb-2 min-h-[2rem] md:min-h-[3rem] flex items-center">{task.title}</h2>
           <div className="flex-1 space-y-2 md:space-y-3">
             <p className="text-sm md:text-base text-gray-600">
               Deadline: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}
             </p>
             <p className="text-sm md:text-base text-gray-600">Priority: {getPriorityText(task.priority)}</p>
-            <div className="flex items-center gap-2">
-              <span className="text-xs md:text-sm text-gray-600">Status:</span>
+            <div className="flex items-center space-x-2">
+              <p className="text-sm md:text-base text-gray-600">Status:</p>
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(schedulingStatus)}`}>
                 {schedulingStatus}
               </span>
             </div>
-            {task.description && (
-              <p className="text-xs md:text-sm text-gray-600 truncate">Description: {task.description}</p>
-            )}
+            <p className="text-xs md:text-sm text-gray-600 truncate">
+              Description: {task.description || ''}
+            </p>
           </div>
           {total > 0 && (
             <div className="mt-3 md:mt-2">

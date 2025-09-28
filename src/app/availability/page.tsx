@@ -147,7 +147,7 @@ export default function Availability() {
   };
 
   return (
-    <main className="container mx-auto p-4 md:p-6 max-w-4xl">
+    <main className="container mx-auto p-4 md:p-6 max-w-2xl md:max-w-4xl">
       <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8 text-center">Availability Settings</h1>
 
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mb-6 md:mb-8">

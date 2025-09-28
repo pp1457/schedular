@@ -3,21 +3,12 @@
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
-interface Subtask {
-  id: string;
-  description: string;
-  done: boolean;
-  project: {
-    id: string;
-    title: string;
-  };
-}
+import { SubtaskMinimal } from '@/lib/types';
 
 
 export default function DailyTasks({ params }: { params: Promise<{ date: string }> }) {
   const { date } = use(params) as { date: string };
-  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [subtasks, setSubtasks] = useState<SubtaskMinimal[]>([]);
   const router = useRouter();
 
   useEffect(() => {

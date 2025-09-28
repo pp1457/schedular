@@ -6,16 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, X } from 'lucide-react';
-
-interface Subtask {
-  id: string;
-  description: string;
-  date: string | null;
-  deadline: string | null;
-  duration: number | null;
-  done: boolean;
-  priority: number;
-}
+import { BaseSubtask } from '@/lib/types';
 
 interface Task {
   id: string;
@@ -24,11 +15,11 @@ interface Task {
   category: string | null;
   deadline: string | null;
   priority: number;
-  subtasks: Subtask[];
+  subtasks: BaseSubtask[];
 }
 
 interface TaskFormProps {
-  onSubmit: (task: Omit<Task, 'id' | 'subtasks'> & { subtasks: Array<Omit<Subtask, 'date' | 'done'> & { id: string }> }) => void;
+  onSubmit: (task: Omit<Task, 'id' | 'subtasks'> & { subtasks: Array<Omit<BaseSubtask, 'date' | 'done'> & { id: string }> }) => void;
 }
 
 export function TaskForm({ onSubmit }: TaskFormProps) {
@@ -37,7 +28,7 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
   const [category, setCategory] = useState('');
   const [deadline, setDeadline] = useState('');
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
-  const [subtasks, setSubtasks] = useState<Array<Omit<Subtask, 'date' | 'done'> & { id: string }>>([]);
+  const [subtasks, setSubtasks] = useState<Array<Omit<BaseSubtask, 'date' | 'done'> & { id: string }>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Update all subtasks' deadlines when project deadline changes
@@ -57,12 +48,13 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
       description: '', 
       duration: 0, 
       deadline: deadline || null, 
-      priority: 2 
+      priority: 2,
+      remainingDuration: 0
     }]);
     console.log('Subtask added, new count should be:', subtasks.length + 1);
   };
 
-  const updateSubtask = (index: number, field: keyof Omit<Subtask, 'date' | 'done'>, value: string | number | null) => {
+  const updateSubtask = (index: number, field: keyof Omit<BaseSubtask, 'date' | 'done'>, value: string | number | null) => {
     const newSubtasks = [...subtasks];
     newSubtasks[index] = { ...newSubtasks[index], [field]: value };
     setSubtasks(newSubtasks);
@@ -82,8 +74,12 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
       const taskSubtasks = subtasks
         .filter(sub => sub.description.trim() !== '')
         .map(sub => ({
-          ...sub,
+          id: sub.id,
           description: sub.description.trim(),
+          deadline: sub.deadline,
+          duration: sub.duration,
+          remainingDuration: sub.remainingDuration,
+          priority: sub.priority,
         }));
       
       console.log('Submitting task with subtasks:', taskSubtasks);
