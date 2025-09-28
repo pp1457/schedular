@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useTaskContext } from '@/contexts/TaskContext';
 
 interface Task {
   id: string;
@@ -21,12 +22,9 @@ interface Task {
 export default function AllTasksPage() {
   const [activeTasks, setActiveTasks] = useState<Task[]>([]);
   const [doneTasksByMonth, setDoneTasksByMonth] = useState<Record<string, Task[]>>({});
+  const { refetchTrigger } = useTaskContext();
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     const res = await fetch('/api/projects');
     if (!res.ok) {
       if (res.status === 401) {
@@ -100,7 +98,20 @@ export default function AllTasksPage() {
     });
     
     setDoneTasksByMonth(sortedGroupedDone);
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks, refetchTrigger]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchTasks();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchTasks]);
 
   const getPriorityText = (priority: number) => {
     if (priority === 1) return 'High';
@@ -113,19 +124,25 @@ export default function AllTasksPage() {
     if (subtasks.length === 0) return 'No subtasks';
 
     const allNotScheduled = subtasks.every(st => st.date === null);
-    if (allNotScheduled) return 'Not Scheduled yet';
+    if (allNotScheduled) return 'Unscheduled';
 
-    const allFullyScheduled = subtasks.every(st => st.remainingDuration === 0 || st.remainingDuration === null);
-    if (allFullyScheduled) return 'Successfully Scheduled';
+    // For tasks with no deadline, don't show "Partial" - only "Scheduled" or "Unscheduled"
+    if (!task.deadline) {
+      const allFullyScheduled = subtasks.every(st => st.remainingDuration === 0);
+      return allFullyScheduled ? 'Scheduled' : 'Unscheduled';
+    }
 
-    return 'Couldn\'t be scheduled within the deadline';
+    const allFullyScheduled = subtasks.every(st => st.remainingDuration === 0);
+    if (allFullyScheduled) return 'Scheduled';
+
+    return 'Partially Scheduled';
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Not Scheduled yet': return 'text-yellow-600 bg-yellow-100';
-      case 'Successfully Scheduled': return 'text-green-600 bg-green-100';
-      case 'Couldn\'t be scheduled within the deadline': return 'text-red-600 bg-red-100';
+      case 'Unscheduled': return 'text-yellow-600 bg-yellow-100';
+      case 'Scheduled': return 'text-green-600 bg-green-100';
+      case 'Partially Scheduled': return 'text-orange-600 bg-orange-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -137,7 +154,7 @@ export default function AllTasksPage() {
     const schedulingStatus = getSchedulingStatus(task);
     return (
       <Link key={task.id} href={`/projects/${task.id}`}>
-        <div className="border border-black p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer h-48 flex flex-col">
+        <div className="border border-black p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer h-56 flex flex-col">
           <h2 className="text-xl font-semibold mb-2 min-h-[3rem] flex items-center">{task.title}</h2>
           <div className="flex-1 space-y-2">
             <p className="text-sm text-gray-600">

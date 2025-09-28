@@ -14,18 +14,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { id } = await params;
     const body = await request.json();
-    const data: {
-      description?: string;
-      date?: Date | null;
-      duration?: number;
-      done?: boolean;
-      priority?: number;
-    } = {};
-    if (body.description !== undefined) data.description = body.description;
-    if (body.date !== undefined) data.date = body.date ? new Date(body.date) : null;
-    if (body.duration !== undefined) data.duration = body.duration;
-    if (body.done !== undefined) data.done = body.done;
-    if (body.priority !== undefined) data.priority = body.priority;
 
     // Check ownership via project
     const subtask = await prisma.subtask.findUnique({
@@ -35,6 +23,36 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!subtask || subtask.project.userId !== session.user.id) {
       return NextResponse.json({ error: 'Subtask not found' }, { status: 404 });
     }
+
+    const data: {
+      description?: string;
+      date?: Date | null;
+      duration?: number;
+      remainingDuration?: number;
+      done?: boolean;
+      priority?: number;
+    } = {};
+    if (body.description !== undefined) data.description = body.description;
+    if (body.date !== undefined) {
+      data.date = body.date ? new Date(body.date) : null;
+      // If setting a date, mark as fully scheduled
+      if (body.date) {
+        data.remainingDuration = 0;
+      } else {
+        // If removing date, reset remaining to duration
+        data.remainingDuration = body.duration !== undefined ? body.duration : subtask.duration;
+      }
+    }
+    if (body.duration !== undefined) {
+      data.duration = body.duration;
+      // If no date is set (either currently or being set), update remaining to match
+      const effectiveDate = data.date !== undefined ? data.date : subtask.date;
+      if (!effectiveDate) {
+        data.remainingDuration = body.duration;
+      }
+    }
+    if (body.done !== undefined) data.done = body.done;
+    if (body.priority !== undefined) data.priority = body.priority;
 
     const updatedSubtask = await prisma.subtask.update({
       where: { id },

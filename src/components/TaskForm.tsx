@@ -38,6 +38,7 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
   const [deadline, setDeadline] = useState('');
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
   const [subtasks, setSubtasks] = useState<Array<Omit<Subtask, 'date' | 'done'> & { id: string }>>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Update all subtasks' deadlines when project deadline changes
   useEffect(() => {
@@ -73,31 +74,39 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
-    const taskSubtasks = subtasks
-      .filter(sub => sub.description.trim() !== '')
-      .map(sub => ({
-        ...sub,
-        description: sub.description.trim(),
-      }));
+    if (!title.trim() || isSubmitting) return;
     
-    console.log('Submitting task with subtasks:', taskSubtasks);
+    setIsSubmitting(true);
     
-    await onSubmit({
-      title: title.trim(),
-      description: description.trim() || undefined,
-      category: category.trim() || null,
-      deadline: deadline || null,
-      priority: priority === 'High' ? 1 : priority === 'Low' ? 3 : 2,
-      subtasks: taskSubtasks,
-    });
-    // Reset form
-    setTitle('');
-    setDescription('');
-    setCategory('');
-    setDeadline('');
-    setPriority('Medium');
-    setSubtasks([]);
+    try {
+      const taskSubtasks = subtasks
+        .filter(sub => sub.description.trim() !== '')
+        .map(sub => ({
+          ...sub,
+          description: sub.description.trim(),
+        }));
+      
+      console.log('Submitting task with subtasks:', taskSubtasks);
+      
+      await onSubmit({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        category: category.trim() || null,
+        deadline: deadline || null,
+        priority: priority === 'High' ? 1 : priority === 'Low' ? 3 : 2,
+        subtasks: taskSubtasks,
+      });
+      
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setCategory('');
+      setDeadline('');
+      setPriority('Medium');
+      setSubtasks([]);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -186,8 +195,8 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
           Add Subtask
         </Button>
       </div>
-      <Button type="submit" className="w-full bg-black text-white hover:bg-gray-800">
-        Create Task
+      <Button type="submit" className="w-full bg-black text-white hover:bg-gray-800" loading={isSubmitting} disabled={isSubmitting}>
+        {isSubmitting ? 'Creating Task...' : 'Create Task'}
       </Button>
     </form>
   );

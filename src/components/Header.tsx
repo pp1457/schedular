@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { TaskForm } from "@/components/TaskForm";
 import { Plus, Home, Calendar, List, Settings, LogOut } from "lucide-react";
+import { useTaskContext } from "@/contexts/TaskContext";
 
 function Header() {
   const router = useRouter();
   const { data: session } = useSession();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const { triggerRefetch } = useTaskContext();
 
   const addTask = async (task: {
     title: string;
@@ -28,28 +31,40 @@ function Header() {
       priority: number;
     }>;
   }) => {
-    console.log('addTask called with:', task);
+    setIsCreatingTask(true);
     
-    const projectData = {
-      title: task.title,
-      description: task.description,
-      category: task.category,
-      deadline: task.deadline,
-      priority: task.priority,
-      userId: session?.user.id,
-    };
-    const res = await fetch('/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(projectData),
-    });
-    if (res.ok) {
+    try {
+      const projectData = {
+        title: task.title,
+        description: task.description,
+        category: task.category,
+        deadline: task.deadline,
+        priority: task.priority,
+      };
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(projectData),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Failed to create project:', errorText);
+        alert('Failed to create project: ' + errorText);
+        return;
+      }
       const newProject = await res.json();
       console.log('Project created:', newProject);
       
       // Create subtasks
       console.log('Creating subtasks:', task.subtasks);
-      for (const sub of task.subtasks) {
+      const subtasksToCreate = task.subtasks.length > 0 ? task.subtasks : [{
+        description: task.title,
+        deadline: task.deadline,
+        duration: 30,
+        priority: task.priority,
+      }];
+      
+      for (const sub of subtasksToCreate) {
         console.log('Creating subtask:', sub);
         const subRes = await fetch('/api/subtasks', {
           method: 'POST',
@@ -62,11 +77,22 @@ function Header() {
             priority: sub.priority,
           }),
         });
+        if (!subRes.ok) {
+          const subError = await subRes.text();
+          console.error('Failed to create subtask:', subError);
+          alert('Failed to create subtask: ' + subError);
+          return;
+        }
         console.log('Subtask creation response:', subRes.status, await subRes.text());
       }
       
+      // Trigger refetch for All Tasks page
+      triggerRefetch();
+      
       setIsDialogOpen(false);
-      router.push('/');
+      router.push('/projects');
+    } finally {
+      setIsCreatingTask(false);
     }
   };
 
@@ -123,7 +149,7 @@ function Header() {
           </Link>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-black text-white hover:bg-gray-800">
+              <Button className="bg-black text-white hover:bg-gray-800" disabled={isCreatingTask}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Task
               </Button>
@@ -131,6 +157,9 @@ function Header() {
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Task</DialogTitle>
+                <DialogDescription>
+                  Create a new task with subtasks, deadlines, and priorities.
+                </DialogDescription>
               </DialogHeader>
               <TaskForm onSubmit={addTask} />
             </DialogContent>

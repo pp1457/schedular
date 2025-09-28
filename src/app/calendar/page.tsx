@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Subtask {
@@ -139,9 +140,13 @@ export default function Calendar() {
                         }}
                         className="w-3 h-3"
                       />
-                      <span className={`truncate ${sub.done ? 'line-through text-gray-500' : ''}`}>
+                      <Link
+                        href={`/projects/${sub.project.id}`}
+                        className={`truncate hover:underline ${sub.done ? 'line-through text-gray-500' : ''}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {sub.description}
-                      </span>
+                      </Link>
                     </div>
                   ))}
                   {getSubtasksForDate(day).length > 3 && (
@@ -162,6 +167,9 @@ export default function Calendar() {
             <DialogTitle>
               {selectedDate ? selectedDate.toLocaleDateString() : ''}
             </DialogTitle>
+            <DialogDescription>
+              View and manage tasks scheduled for this date.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             {selectedDate && getSubtasksForDate(selectedDate).map(sub => (
@@ -172,9 +180,9 @@ export default function Calendar() {
                   onChange={() => handleCheckboxChange(sub.id, sub.done)}
                   className="w-4 h-4"
                 />
-                <span className={sub.done ? 'line-through text-gray-500' : ''}>
+                <Link href={`/projects/${sub.project.id}`} className={`hover:underline ${sub.done ? 'line-through text-gray-500' : ''}`}>
                   {sub.description} ({sub.duration} min) - {sub.project.title}
-                </span>
+                </Link>
               </div>
             ))}
             {selectedDate && getSubtasksForDate(selectedDate).length === 0 && (

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Availability {
@@ -225,6 +225,9 @@ export default function Availability() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Set availability for {selectedDate?.toLocaleDateString()}</DialogTitle>
+            <DialogDescription>
+              Set custom availability hours for this specific date.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>

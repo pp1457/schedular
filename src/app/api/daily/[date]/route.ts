@@ -18,6 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ date
         date: new Date(date),
         project: { userId: session.user.id },
       },
+      include: { project: true },
     });
     return NextResponse.json(tasks);
   } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars

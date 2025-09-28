@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Edit, Trash2, Play, Pencil } from 'lucide-react';
 
 interface Subtask {
@@ -16,6 +16,7 @@ interface Subtask {
   done: boolean;
   date: string | null;
   duration: number | null;
+  remainingDuration: number | null;
   scheduledDates?: {date: string, duration: number}[];
 }
 
@@ -45,6 +46,9 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
   const [editingSubtask, setEditingSubtask] = useState<Subtask | null>(null);
   const [isEditSubtaskDialogOpen, setIsEditSubtaskDialogOpen] = useState(false);
   const [expandedSplits, setExpandedSplits] = useState<Set<string>>(new Set());
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
   const router = useRouter();
 
   const fetchProject = useCallback(async () => {
@@ -76,45 +80,55 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
 
   const handleDelete = async () => {
     if (confirm('Are you sure you want to delete this task?')) {
-      const res = await fetch(`/api/projects/${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        router.push('/');
+      setIsDeleting(true);
+      try {
+        const res = await fetch(`/api/projects/${id}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          router.push('/');
+        }
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
 
     const handleSchedule = async () => {
-    const res = await fetch('/api/schedule', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project_id: id }),
-    });
-    if (res.ok) {
-      const result = await res.json();
-      fetchProject();
-      
-      // Handle different response types
-      if (result.subtasks) {
-        // Filter newly scheduled subtasks (those with dates)
-        const newlyScheduled = result.subtasks.filter((st: Subtask) => st.date);
-        setScheduledSubtasks(newlyScheduled);
-        let message = '';
-        if (result.splitSubtasks && result.splitSubtasks.length > 0) {
-          message += `${result.splitSubtasks.length} subtask(s) were split across multiple days. `;
+    setIsScheduling(true);
+    try {
+      const res = await fetch('/api/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: id }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        fetchProject();
+        
+        // Handle different response types
+        if (result.subtasks) {
+          // Filter newly scheduled subtasks (those with dates)
+          const newlyScheduled = result.subtasks.filter((st: Subtask) => st.date);
+          setScheduledSubtasks(newlyScheduled);
+          let message = '';
+          if (result.splitSubtasks && result.splitSubtasks.length > 0) {
+            message += `${result.splitSubtasks.length} subtask(s) were split across multiple days. `;
+          }
+          if (result.deadlineIssues && result.deadlineIssues.length > 0) {
+            message += `${result.deadlineIssues.length} subtask(s) could not be fully scheduled before their deadline.`;
+          }
+          setScheduleMessage(message || '');
+          setIsScheduleDialogOpen(true);
+        } else if (result.message) {
+          // Show message for cases like "All subtasks are already scheduled"
+          setScheduledSubtasks([]);
+          setScheduleMessage(result.message);
+          setIsScheduleDialogOpen(true);
         }
-        if (result.deadlineIssues && result.deadlineIssues.length > 0) {
-          message += `${result.deadlineIssues.length} subtask(s) could not be fully scheduled before their deadline.`;
-        }
-        setScheduleMessage(message || '');
-        setIsScheduleDialogOpen(true);
-      } else if (result.message) {
-        // Show message for cases like "All subtasks are already scheduled"
-        setScheduledSubtasks([]);
-        setScheduleMessage(result.message);
-        setIsScheduleDialogOpen(true);
       }
+    } finally {
+      setIsScheduling(false);
     }
   };
 
@@ -134,20 +148,25 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
     e.preventDefault();
     if (!newSubtaskDescription.trim()) return;
 
-    const res = await fetch('/api/subtasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        projectId: id, 
-        description: newSubtaskDescription,
-        duration: newSubtaskDuration ? parseFloat(newSubtaskDuration) : null
-      }),
-    });
+    setIsAddingSubtask(true);
+    try {
+      const res = await fetch('/api/subtasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          projectId: id, 
+          description: newSubtaskDescription,
+          duration: newSubtaskDuration ? parseFloat(newSubtaskDuration) : null
+        }),
+      });
 
-    if (res.ok) {
-      setNewSubtaskDescription('');
-      setNewSubtaskDuration('');
-      fetchProject();
+      if (res.ok) {
+        setNewSubtaskDescription('');
+        setNewSubtaskDuration('');
+        fetchProject();
+      }
+    } finally {
+      setIsAddingSubtask(false);
     }
   };
 
@@ -200,6 +219,36 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
   const completed = project.subtasks.filter(sub => sub.done).length;
   const total = project.subtasks.length;
 
+  const getSchedulingStatus = (project: Project) => {
+    const subtasks = project.subtasks;
+    if (subtasks.length === 0) return 'No subtasks';
+
+    const allNotScheduled = subtasks.every(st => st.date === null);
+    if (allNotScheduled) return 'Unscheduled';
+
+    // For tasks with no deadline, don't show "Partial" - only "Scheduled" or "Unscheduled"
+    if (!project.deadline) {
+      const allFullyScheduled = subtasks.every(st => st.remainingDuration === 0);
+      return allFullyScheduled ? 'Scheduled' : 'Unscheduled';
+    }
+
+    const allFullyScheduled = subtasks.every(st => st.remainingDuration === 0);
+    if (allFullyScheduled) return 'Scheduled';
+
+    return 'Partially Scheduled';
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Unscheduled': return 'text-yellow-600 bg-yellow-100';
+      case 'Scheduled': return 'text-green-600 bg-green-100';
+      case 'Partially Scheduled': return 'text-orange-600 bg-orange-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const schedulingStatus = getSchedulingStatus(project);
+
   return (
     <main className="container mx-auto p-4 max-w-2xl">
       <div className="border border-black p-6 rounded-lg">
@@ -211,7 +260,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
             )}
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm" onClick={handleSchedule} className="border-black text-black hover:bg-gray-100">
+            <Button variant="outline" size="sm" onClick={handleSchedule} className="border-black text-black hover:bg-gray-100" loading={isScheduling} disabled={isScheduling}>
               <Play className="w-4 h-4" />
             </Button>
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
@@ -223,17 +272,20 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
               <DialogContent className="bg-white border-black">
                 <DialogHeader>
                   <DialogTitle>Edit Task</DialogTitle>
+                  <DialogDescription>
+                    Update the task details, deadline, and priority.
+                  </DialogDescription>
                 </DialogHeader>
                 <EditForm project={project} onSubmit={handleUpdate} />
               </DialogContent>
             </Dialog>
-            <Button variant="outline" size="sm" onClick={handleDelete} className="border-black text-black hover:bg-gray-100">
+            <Button variant="outline" size="sm" onClick={handleDelete} className="border-black text-black hover:bg-gray-100" loading={isDeleting} disabled={isDeleting}>
               <Trash2 className="w-4 h-4" />
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-3 gap-4 mb-4">
           <div>
             <p className="text-sm text-gray-600">Deadline</p>
             <p>{project.deadline ? new Date(project.deadline).toLocaleDateString() : 'No deadline'}</p>
@@ -241,6 +293,12 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
           <div>
             <p className="text-sm text-gray-600">Priority</p>
             <p>{project.priority === 1 ? 'High' : project.priority === 2 ? 'Medium' : 'Low'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Status</p>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(schedulingStatus)}`}>
+              {schedulingStatus}
+            </span>
           </div>
           <div>
             <p className="text-sm text-gray-600">Category</p>
@@ -350,7 +408,7 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
               placeholder="Minutes"
               className="w-32 border-black"
             />
-            <Button type="submit" className="bg-black text-white hover:bg-gray-800">
+            <Button type="submit" className="bg-black text-white hover:bg-gray-800" loading={isAddingSubtask} disabled={isAddingSubtask}>
               Add
             </Button>
           </form>
@@ -361,6 +419,9 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
         <DialogContent className="bg-white border-black">
           <DialogHeader>
             <DialogTitle>Schedule Results</DialogTitle>
+            <DialogDescription>
+              Results of scheduling your subtasks based on your availability.
+            </DialogDescription>
           </DialogHeader>
           {scheduleMessage ? (
             <p>{scheduleMessage}</p>
@@ -388,6 +449,9 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
         <DialogContent className="bg-white border-black">
           <DialogHeader>
             <DialogTitle>Edit Subtask</DialogTitle>
+            <DialogDescription>
+              Update the subtask&apos;s scheduled date and duration.
+            </DialogDescription>
           </DialogHeader>
           {editingSubtask && (
             <EditSubtaskForm
@@ -408,16 +472,22 @@ function EditForm({ project, onSubmit }: { project: Project; onSubmit: (project:
   const [category, setCategory] = useState(project.category || '');
   const [deadline, setDeadline] = useState(project.deadline ? project.deadline.split('T')[0] : '');
   const [priority, setPriority] = useState(project.priority === 1 ? 'High' : project.priority === 2 ? 'Medium' : 'Low');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
-      title,
-      description: description || undefined,
-      category: category || null,
-      deadline: deadline || null,
-      priority: priority === 'High' ? 1 : priority === 'Low' ? 3 : 2,
-    });
+    setIsSubmitting(true);
+    try {
+      onSubmit({
+        title,
+        description: description || undefined,
+        category: category || null,
+        deadline: deadline || null,
+        priority: priority === 'High' ? 1 : priority === 'Low' ? 3 : 2,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -469,7 +539,7 @@ function EditForm({ project, onSubmit }: { project: Project; onSubmit: (project:
           </SelectContent>
         </Select>
       </div>
-      <Button type="submit" className="w-full bg-black text-white hover:bg-gray-800">
+      <Button type="submit" className="w-full bg-black text-white hover:bg-gray-800" loading={isSubmitting} disabled={isSubmitting}>
         Update Task
       </Button>
     </form>
@@ -487,13 +557,19 @@ function EditSubtaskForm({
 }) {
   const [date, setDate] = useState(subtask.date ? subtask.date.split('T')[0] : '');
   const [duration, setDuration] = useState(subtask.duration?.toString() || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
-      date: date || null,
-      duration: duration ? parseFloat(duration) : null,
-    });
+    setIsSubmitting(true);
+    try {
+      onSubmit({
+        date: date || null,
+        duration: duration ? parseFloat(duration) : null,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -520,10 +596,10 @@ function EditSubtaskForm({
         />
       </div>
       <div className="flex space-x-2">
-        <Button type="submit" className="flex-1 bg-black text-white hover:bg-gray-800">
+        <Button type="submit" className="flex-1 bg-black text-white hover:bg-gray-800" loading={isSubmitting} disabled={isSubmitting}>
           Update
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1 border-black text-black hover:bg-gray-100">
+        <Button type="button" variant="outline" onClick={onCancel} className="flex-1 border-black text-black hover:bg-gray-100" disabled={isSubmitting}>
           Cancel
         </Button>
       </div>

@@ -8,6 +8,10 @@ interface Subtask {
   id: string;
   description: string;
   done: boolean;
+  project: {
+    id: string;
+    title: string;
+  };
 }
 
 
@@ -83,7 +87,9 @@ export default function DailyTasks({ params }: { params: Promise<{ date: string 
                 onChange={() => handleCheckboxChange(subtask.id, subtask.done)}
                 className="mr-2"
               />
-              <span className={subtask.done ? 'line-through' : ''}>{subtask.description}</span>
+              <Link href={`/projects/${subtask.project.id}`} className={`hover:underline ${subtask.done ? 'line-through' : ''}`}>
+                {subtask.description} - {subtask.project.title}
+              </Link>
             </div>
           ))}
         </div>

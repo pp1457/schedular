@@ -61,8 +61,10 @@ export async function GET(request: Request) {
 
       return NextResponse.json(expandedSubtasks);
     }
-  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
-    return NextResponse.json({ error: 'Error fetching subtasks' }, { status: 500 });
+  } catch (error) {
+    console.error('Error fetching subtasks:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'Error fetching subtasks', details: errorMessage }, { status: 500 });
   }
 }
 

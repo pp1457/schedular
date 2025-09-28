@@ -17,8 +17,10 @@ export async function GET() {
       include: { subtasks: true }
     });
     return NextResponse.json(projects);
-  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
-    return NextResponse.json({ error: 'Error fetching projects' }, { status: 500 });
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'Error fetching projects', details: errorMessage }, { status: 500 });
   }
 }
 
@@ -29,7 +31,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log('Session user ID:', session.user.id);
+
     const { title, description, category, deadline, priority } = await request.json();
+    
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+    });
+    
     const newProject = await prisma.project.create({
       data: {
         title,
@@ -37,11 +47,13 @@ export async function POST(request: Request) {
         category,
         deadline: deadline ? new Date(deadline) : null,
         priority,
-        userId: session.user.id,
+        userId: user ? session.user.id : null,
       },
     });
     return NextResponse.json(newProject, { status: 201 });
-  } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
-    return NextResponse.json({ error: 'Error creating project' }, { status: 500 });
+  } catch (error) {
+    console.error('Error creating project:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'Error creating project', details: errorMessage }, { status: 500 });
   }
 }

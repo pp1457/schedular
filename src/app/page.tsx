@@ -127,13 +127,13 @@ export default function Home() {
                       <div className="flex-1">
                         <p className={`font-medium ${subtask.done ? 'line-through text-gray-500' : 'text-gray-900'}`}>{subtask.description}</p>
                         <p className="text-sm text-gray-600">
-                          From: <Link href={`/projects/${subtask.project.id}`} className="text-blue-600 hover:underline">
+                          From: <Link href={`/projects/${subtask.project.id}`} className="text-gray-900 border-b border-gray-400 hover:border-gray-600 hover:text-black">
                             {subtask.project.title}
                           </Link>
                         </p>
                         <p className="text-sm text-gray-600">
                           Priority: {getPriorityText(subtask.priority)}
-                          {subtask.duration && ` • ${subtask.duration} min`}
+                          {subtask.duration != null && ` • ${subtask.duration} min`}
                         </p>
                       </div>
                       <input
