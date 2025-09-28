@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +11,7 @@ interface Subtask {
   id: string;
   description: string;
   date: string | null;
+  deadline: string | null;
   duration: number | null;
   done: boolean;
   priority: number;
@@ -27,7 +28,7 @@ interface Task {
 }
 
 interface TaskFormProps {
-  onSubmit: (task: Omit<Task, 'id' | 'subtasks'> & { subtasks: Omit<Subtask, 'id' | 'done'>[] }) => void;
+  onSubmit: (task: Omit<Task, 'id' | 'subtasks'> & { subtasks: Array<Omit<Subtask, 'date' | 'done'> & { id: string }> }) => void;
 }
 
 export function TaskForm({ onSubmit }: TaskFormProps) {
@@ -36,13 +37,31 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
   const [category, setCategory] = useState('');
   const [deadline, setDeadline] = useState('');
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
-  const [subtasks, setSubtasks] = useState<Omit<Subtask, 'id' | 'done'>[]>([]);
+  const [subtasks, setSubtasks] = useState<Array<Omit<Subtask, 'date' | 'done'> & { id: string }>>([]);
+
+  // Update all subtasks' deadlines when project deadline changes
+  useEffect(() => {
+    setSubtasks(prevSubtasks => 
+      prevSubtasks.map(subtask => ({
+        ...subtask,
+        deadline: deadline || null
+      }))
+    );
+  }, [deadline]);
 
   const addSubtask = () => {
-    setSubtasks([...subtasks, { description: '', duration: 0, date: null, priority: 2 }]);
+    console.log('Adding subtask, current count:', subtasks.length);
+    setSubtasks([...subtasks, { 
+      id: Date.now().toString(),
+      description: '', 
+      duration: 0, 
+      deadline: deadline || null, 
+      priority: 2 
+    }]);
+    console.log('Subtask added, new count should be:', subtasks.length + 1);
   };
 
-  const updateSubtask = (index: number, field: keyof Omit<Subtask, 'id' | 'done'>, value: string | number | null) => {
+  const updateSubtask = (index: number, field: keyof Omit<Subtask, 'date' | 'done'>, value: string | number | null) => {
     const newSubtasks = [...subtasks];
     newSubtasks[index] = { ...newSubtasks[index], [field]: value };
     setSubtasks(newSubtasks);
@@ -56,7 +75,14 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
     e.preventDefault();
     if (!title.trim()) return;
     const taskSubtasks = subtasks
-      .filter(sub => sub.description.trim());
+      .filter(sub => sub.description.trim() !== '')
+      .map(sub => ({
+        ...sub,
+        description: sub.description.trim(),
+      }));
+    
+    console.log('Submitting task with subtasks:', taskSubtasks);
+    
     await onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
@@ -124,34 +150,37 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
         </Select>
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">Subtasks</label>
-        {subtasks.map((sub, index) => (
-          <div key={index} className="flex space-x-2 mb-2">
-            <Input
-              placeholder="Description"
-              value={sub.description}
-              onChange={(e) => updateSubtask(index, 'description', e.target.value)}
-              className="flex-1 border-black"
-            />
-            <Input
-              type="date"
-              placeholder="Date"
-              value={sub.date || ''}
-              onChange={(e) => updateSubtask(index, 'date', e.target.value)}
-              className="w-32 border-black"
-            />
-            <Input
-              type="number"
-              placeholder="Minute"
-              value={sub.duration || ''}
-              onChange={(e) => updateSubtask(index, 'duration', parseInt(e.target.value) || 0)}
-              className="w-24 border-black"
-            />
-            <Button type="button" variant="outline" size="icon" onClick={() => removeSubtask(index)} className="border-black">
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        ))}
+        <label className="block text-sm font-medium mb-1">Subtasks ({subtasks.length})</label>
+                {subtasks.map((sub, index) => {
+                  console.log('Rendering subtask:', sub.id, sub.description);
+                  return (
+                    <div key={sub.id} className="flex space-x-2 mb-2">
+                      <Input
+                        placeholder="Description"
+                        value={sub.description}
+                        onChange={(e) => updateSubtask(index, 'description', e.target.value)}
+                        className="flex-1 border-black"
+                      />
+                      <Input
+                        type="date"
+                        placeholder="Deadline"
+                        value={sub.deadline || ''}
+                        onChange={(e) => updateSubtask(index, 'deadline', e.target.value)}
+                        className="w-32 border-black"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Minutes"
+                        value={sub.duration || ''}
+                        onChange={(e) => updateSubtask(index, 'duration', parseInt(e.target.value) || 0)}
+                        className="w-32 border-black"
+                      />
+                      <Button type="button" variant="outline" size="icon" onClick={() => removeSubtask(index)} className="border-black">
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
         <Button type="button" variant="outline" onClick={addSubtask} className="border-black text-black hover:bg-gray-100">
           <Plus className="w-4 h-4 mr-2" />
           Add Subtask

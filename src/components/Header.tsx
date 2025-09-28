@@ -21,12 +21,15 @@ function Header() {
     deadline: string | null;
     priority: number;
     subtasks: Array<{
+      id: string;
       description: string;
-      date: string | null;
+      deadline: string | null;
       duration: number | null;
       priority: number;
     }>;
   }) => {
+    console.log('addTask called with:', task);
+    
     const projectData = {
       title: task.title,
       description: task.description,
@@ -42,20 +45,26 @@ function Header() {
     });
     if (res.ok) {
       const newProject = await res.json();
+      console.log('Project created:', newProject);
+      
       // Create subtasks
+      console.log('Creating subtasks:', task.subtasks);
       for (const sub of task.subtasks) {
-        await fetch('/api/subtasks', {
+        console.log('Creating subtask:', sub);
+        const subRes = await fetch('/api/subtasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             projectId: newProject.id,
             description: sub.description,
-            date: sub.date,
+            deadline: sub.deadline,
             duration: sub.duration,
             priority: sub.priority,
           }),
         });
+        console.log('Subtask creation response:', subRes.status, await subRes.text());
       }
+      
       setIsDialogOpen(false);
       router.push('/');
     }

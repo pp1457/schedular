@@ -16,13 +16,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const body = await request.json();
     const data: {
       description?: string;
-      date?: Date | null;
+      deadline?: Date | null;
       duration?: number;
       done?: boolean;
       priority?: number;
     } = {};
     if (body.description !== undefined) data.description = body.description;
-    if (body.date !== undefined) data.date = body.date ? new Date(body.date) : null;
+    if (body.deadline !== undefined) data.deadline = body.deadline ? new Date(body.deadline) : null;
     if (body.duration !== undefined) data.duration = body.duration;
     if (body.done !== undefined) data.done = body.done;
     if (body.priority !== undefined) data.priority = body.priority;

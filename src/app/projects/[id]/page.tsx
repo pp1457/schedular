@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Edit, Trash2, Play } from 'lucide-react';
+import { Edit, Trash2, Play, Pencil } from 'lucide-react';
 
 interface Subtask {
   id: string;
@@ -41,6 +41,8 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
   const [scheduledSubtasks, setScheduledSubtasks] = useState<ScheduledSubtask[]>([]);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState<string>('');
+  const [editingSubtask, setEditingSubtask] = useState<Subtask | null>(null);
+  const [isEditSubtaskDialogOpen, setIsEditSubtaskDialogOpen] = useState(false);
   const router = useRouter();
 
   const fetchProject = useCallback(async () => {
@@ -140,6 +142,38 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
     }
   };
 
+  const handleEditSubtask = (subtask: Subtask) => {
+    setEditingSubtask(subtask);
+    setIsEditSubtaskDialogOpen(true);
+  };
+
+  const handleDeleteSubtask = async (subtaskId: string) => {
+    if (confirm('Are you sure you want to delete this subtask?')) {
+      const res = await fetch(`/api/subtasks/${subtaskId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        fetchProject();
+      }
+    }
+  };
+
+  const handleUpdateSubtask = async (updatedSubtask: { deadline: string | null; duration: number | null }) => {
+    if (!editingSubtask) return;
+
+    const res = await fetch(`/api/subtasks/${editingSubtask.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedSubtask),
+    });
+
+    if (res.ok) {
+      fetchProject();
+      setIsEditSubtaskDialogOpen(false);
+      setEditingSubtask(null);
+    }
+  };
+
   if (!project) {
     return <main className="container mx-auto p-4 flex items-center justify-center min-h-[50vh]">Loading...</main>;
   }
@@ -226,11 +260,29 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
                       {subtask.description}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-600 flex items-center space-x-4">
-                    {subtask.duration && <span>{subtask.duration} min</span>}
-                    <span>
-                      {subtask.date ? new Date(subtask.date).toLocaleDateString() : 'Not scheduled'}
-                    </span>
+                  <div className="flex items-center space-x-2">
+                    <div className="text-sm text-gray-600 flex items-center space-x-4">
+                      {subtask.duration && <span>{subtask.duration} min</span>}
+                      <span>
+                        {subtask.date ? new Date(subtask.date).toLocaleDateString() : 'Not scheduled'}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditSubtask(subtask)}
+                      className="h-6 w-6 p-0 hover:bg-gray-100"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteSubtask(subtask.id)}
+                      className="h-6 w-6 p-0 hover:bg-red-100 text-red-600"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -286,6 +338,21 @@ export default function ProjectDetails({ params }: { params: Promise<{ id: strin
             </div>
           ) : (
             <p>No subtasks were scheduled. This could be because all subtasks are already scheduled, or because you haven&apos;t set your availability yet. Please check your availability settings.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditSubtaskDialogOpen} onOpenChange={setIsEditSubtaskDialogOpen}>
+        <DialogContent className="bg-white border-black">
+          <DialogHeader>
+            <DialogTitle>Edit Subtask</DialogTitle>
+          </DialogHeader>
+          {editingSubtask && (
+            <EditSubtaskForm
+              subtask={editingSubtask}
+              onSubmit={handleUpdateSubtask}
+              onCancel={() => setIsEditSubtaskDialogOpen(false)}
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -363,6 +430,61 @@ function EditForm({ project, onSubmit }: { project: Project; onSubmit: (project:
       <Button type="submit" className="w-full bg-black text-white hover:bg-gray-800">
         Update Task
       </Button>
+    </form>
+  );
+}
+
+function EditSubtaskForm({ 
+  subtask, 
+  onSubmit, 
+  onCancel 
+}: { 
+  subtask: Subtask; 
+  onSubmit: (data: { deadline: string | null; duration: number | null }) => void;
+  onCancel: () => void;
+}) {
+  const [deadline, setDeadline] = useState(subtask.date ? subtask.date.split('T')[0] : '');
+  const [duration, setDuration] = useState(subtask.duration?.toString() || '');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      deadline: deadline || null,
+      duration: duration ? parseFloat(duration) : null,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium mb-1">Deadline</label>
+        <Input
+          type="date"
+          value={deadline}
+          onChange={(e) => setDeadline(e.target.value)}
+          className="border-black"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Duration (minutes)</label>
+        <Input
+          type="number"
+          step="1"
+          min="0"
+          value={duration}
+          onChange={(e) => setDuration(e.target.value)}
+          placeholder="Enter duration in minutes"
+          className="border-black"
+        />
+      </div>
+      <div className="flex space-x-2">
+        <Button type="submit" className="flex-1 bg-black text-white hover:bg-gray-800">
+          Update
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel} className="flex-1 border-black text-black hover:bg-gray-100">
+          Cancel
+        </Button>
+      </div>
     </form>
   );
 }

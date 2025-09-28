@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { projectId, description, date, duration, priority } = await request.json();
+    const { projectId, description, deadline, duration, priority } = await request.json();
 
     // Check if project belongs to user
     const project = await prisma.project.findUnique({
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       data: {
         projectId,
         description,
-        date: date ? new Date(date) : null,
+        deadline: deadline ? new Date(deadline) : null,
         duration,
         priority,
       },

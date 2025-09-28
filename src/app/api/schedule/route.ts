@@ -46,19 +46,38 @@ export async function POST(request: Request) {
       return hours * 60;
     };
 
+    // If no availability is set up, provide default 8 hours per day
+    const hasAvailability = availability.length > 0;
+    const defaultAvailableMinutes = hasAvailability ? 0 : 8 * 60; // 8 hours default
+
     // Filter unscheduled subtasks
     const unscheduledSubtasks = project.subtasks.filter(st => !st.date);
+
+    console.log(`Scheduling ${unscheduledSubtasks.length} subtasks for project ${project.id}`);
+    console.log(`User has availability set up: ${hasAvailability}`);
 
     if (unscheduledSubtasks.length === 0) {
       return NextResponse.json({ message: 'All subtasks are already scheduled' });
     }
 
-    // Sort by priority (1 high, 3 low), then by deadline
+    // Sort by priority (1 high, 3 low), then by deadline proximity (earliest first)
     unscheduledSubtasks.sort((a, b) => {
       if (a.priority !== b.priority) return a.priority - b.priority;
-      if (project.deadline && a.date && b.date) {
-        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      
+      // Get effective deadline for each subtask (subtask deadline or project deadline)
+      const aDeadline = a.deadline ? new Date(a.deadline) : (project.deadline ? new Date(project.deadline) : null);
+      const bDeadline = b.deadline ? new Date(b.deadline) : (project.deadline ? new Date(project.deadline) : null);
+      
+      // Tasks with deadlines come before tasks without deadlines
+      if (aDeadline && !bDeadline) return -1;
+      if (!aDeadline && bDeadline) return 1;
+      
+      // Both have deadlines: earliest deadline first
+      if (aDeadline && bDeadline) {
+        return aDeadline.getTime() - bDeadline.getTime();
       }
+      
+      // Neither has deadline: maintain current order
       return 0;
     });
 
@@ -70,7 +89,7 @@ export async function POST(request: Request) {
       let attempts = 0;
       while (!assigned && attempts < 30) { // Max 30 days ahead
         const dateStr = currentDate.toISOString().split('T')[0];
-        const availableMinutes = getAvailableMinutes(currentDate);
+        const availableMinutes = hasAvailability ? getAvailableMinutes(currentDate) : defaultAvailableMinutes;
         const used = dailyUsedMinutes[dateStr] || 0;
         if (availableMinutes > 0 && used + (subtask.duration || 0) <= availableMinutes) {
           // Assign
@@ -86,7 +105,7 @@ export async function POST(request: Request) {
         }
       }
       if (!assigned) {
-        // Could not assign, perhaps notify
+        console.log(`Could not schedule subtask ${subtask.id} (${subtask.description}) - no available time found`);
       }
     }
 

@@ -78,6 +78,7 @@ model Subtask {
   projectId String
   description String
   date      DateTime? @db.Date
+  deadline  DateTime? @db.Date
   duration  Int?
   done      Boolean  @default(false)
   priority  Int      @default(2)

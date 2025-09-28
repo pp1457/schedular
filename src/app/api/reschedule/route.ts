@@ -36,9 +36,24 @@ export async function POST() {
         // For simplicity, duplicate the logic
         const unscheduledSubtasks = project.subtasks.filter(st => !st.date);
 
-        // Sort by priority, then by id to preserve order
+        // Sort by priority, then by deadline proximity (earliest first)
         unscheduledSubtasks.sort((a, b) => {
           if (a.priority !== b.priority) return a.priority - b.priority;
+          
+          // Get effective deadline for each subtask (subtask deadline or project deadline)
+          const aDeadline = a.deadline ? new Date(a.deadline) : (project.deadline ? new Date(project.deadline) : null);
+          const bDeadline = b.deadline ? new Date(b.deadline) : (project.deadline ? new Date(project.deadline) : null);
+          
+          // Tasks with deadlines come before tasks without deadlines
+          if (aDeadline && !bDeadline) return -1;
+          if (!aDeadline && bDeadline) return 1;
+          
+          // Both have deadlines: earliest deadline first
+          if (aDeadline && bDeadline) {
+            return aDeadline.getTime() - bDeadline.getTime();
+          }
+          
+          // Neither has deadline: sort by id to maintain order
           return a.id.localeCompare(b.id);
         });
 
