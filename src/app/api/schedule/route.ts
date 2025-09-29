@@ -145,11 +145,8 @@ export async function POST(request: Request) {
       }
       const dayOfWeek = parseInt(formatInTimeZone(date, timezone, 'i')) % 7;
       const hours = availabilityMap.get(dayOfWeek);
-      return hours !== undefined ? hours * 60 : 8 * 60;
+      return hours !== undefined ? hours * 60 : 0;
     };
-
-    const hasAvailability = availability.length > 0;
-    const defaultAvailableMinutes = hasAvailability ? 0 : 8 * 60;
 
     // Schedule with interleaving: alternate between projects when possible
     const projectGroups = new Map<string, Array<{subtask: Subtask, project: Project}>>();
@@ -179,7 +176,7 @@ export async function POST(request: Request) {
         const { subtask } = item;
         
         // Schedule this subtask
-        const remaining = subtask.remainingDuration ?? subtask.duration ?? 0;
+        let remaining = subtask.remainingDuration ?? subtask.duration ?? 0;
         if (remaining > 0) {
           const effectiveDeadline = subtask.deadline ? new Date(subtask.deadline) : (item.project.deadline ? new Date(item.project.deadline) : null);
           
@@ -187,7 +184,7 @@ export async function POST(request: Request) {
           const availableDays: { date: Date; availableMinutes: number }[] = [];
           let currentDate = new Date(today);
           for (let i = 0; i < 60 && availableDays.length < 30; i++) {
-            const availableMinutes = hasAvailability ? getAvailableMinutes(currentDate) : defaultAvailableMinutes;
+            const availableMinutes = availability.length > 0 ? getAvailableMinutes(currentDate) : 8 * 60;
             if (availableMinutes > 0) {
               const dateStr = formatDBDate(currentDate);
               const alreadyUsed = dailyUsedMinutes[dateStr] || 0;
@@ -209,21 +206,35 @@ export async function POST(request: Request) {
             continue;
           }
 
-          // Try to schedule on earliest available day
-          const day = availableDays[0];
-          const timeToSchedule = Math.min(day.availableMinutes, remaining);
+          // Calculate total available time
+          const totalAvailableMinutes = availableDays.reduce((sum, day) => sum + day.availableMinutes, 0);
           
-          const scheduledDates = [{
-            date: formatDBDate(day.date),
-            duration: timeToSchedule
-          }];
+          if (totalAvailableMinutes < remaining) {
+            // Not enough time available, schedule what we can
+            remaining = totalAvailableMinutes;
+          }
+
+          // Distribute evenly across available days
+          const scheduledDates: {date: string, duration: number}[] = [];
+          let remainingToSchedule = remaining;
           
-          dailyUsedMinutes[formatDBDate(day.date)] = (dailyUsedMinutes[formatDBDate(day.date)] || 0) + timeToSchedule;
-          
+          for (const day of availableDays) {
+            if (remainingToSchedule <= 0) break;
+            
+            const dateStr = formatDBDate(day.date);
+            const timeForThisDay = Math.min(day.availableMinutes, remainingToSchedule);
+            
+            if (timeForThisDay > 0) {
+              scheduledDates.push({ date: dateStr, duration: timeForThisDay });
+              dailyUsedMinutes[dateStr] = (dailyUsedMinutes[dateStr] || 0) + timeForThisDay;
+              remainingToSchedule -= timeForThisDay;
+            }
+          }
+
           scheduledResults.push({
             subtaskId: subtask.id,
             scheduledDates,
-            remainingDuration: remaining - timeToSchedule
+            remainingDuration: remaining - (remaining - remainingToSchedule)
           });
         }
         

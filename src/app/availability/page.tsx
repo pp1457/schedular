@@ -22,14 +22,31 @@ interface Override {
 export default function Availability() {
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [overrides, setOverrides] = useState<Override[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedHours, setSelectedHours] = useState<string>('');
+  const [isUpdatingAvailability, setIsUpdatingAvailability] = useState(false);
+  const [isUpdatingOverride, setIsUpdatingOverride] = useState(false);
+  const [isDeletingOverride, setIsDeletingOverride] = useState(false);
 
   useEffect(() => {
-    fetchAvailability();
-    fetchOverrides();
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchAvailability(), fetchOverrides()]);
+      setLoading(false);
+    };
+    loadData();
   }, []);
+
+  // Update selectedHours when selectedDate or overrides change
+  useEffect(() => {
+    if (selectedDate) {
+      const dateStr = formatDBDate(selectedDate);
+      const override = overrides.find(o => o.date === dateStr);
+      setSelectedHours(override ? (override.hours?.toString() || '') : '');
+    }
+  }, [selectedDate, overrides]);
 
   const fetchAvailability = async () => {
     const res = await fetch('/api/availability');
@@ -49,62 +66,78 @@ export default function Availability() {
   };
 
   const updateAvailability = async () => {
-    const data = availability.map(a => ({ dayOfWeek: a.dayOfWeek, hours: a.hours }));
-    const timezone = getUserTimezone();
-    const res = await fetch('/api/availability', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ availability: data, timezone }),
-    });
-    if (res.ok) {
-      alert('Availability updated');
-      // Re-schedule from today
-      const today = formatLocalDate(new Date());
-      await fetch('/api/reschedule', { 
+    setIsUpdatingAvailability(true);
+    try {
+      const data = availability.map(a => ({ dayOfWeek: a.dayOfWeek, hours: a.hours }));
+      const timezone = getUserTimezone();
+      const res = await fetch('/api/availability', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ start_date: today, timezone })
+        body: JSON.stringify({ availability: data, timezone }),
       });
+      if (res.ok) {
+        alert('Availability updated');
+        fetchAvailability();
+        // Re-schedule from today
+        const today = formatLocalDate(new Date());
+        await fetch('/api/reschedule', { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ start_date: today, timezone })
+        });
+      }
+    } finally {
+      setIsUpdatingAvailability(false);
     }
   };
 
   const updateOverride = async () => {
     if (!selectedDate) return;
-    const hours = selectedHours === '' ? null : Math.max(0, parseFloat(selectedHours) || 0);
-    const res = await fetch('/api/availability/overrides', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: formatDBDate(selectedDate), hours }),
-    });
-    if (res.ok) {
-      fetchOverrides();
-      setSelectedDate(null);
-      setSelectedHours('');
-      // Re-schedule from the overridden date
-      const timezone = getUserTimezone();
-      await fetch('/api/reschedule', { 
+    setIsUpdatingOverride(true);
+    try {
+      const hours = selectedHours === '' ? null : Math.max(0, parseFloat(selectedHours) || 0);
+      const res = await fetch('/api/availability/overrides', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ start_date: formatDBDate(selectedDate), timezone })
+        body: JSON.stringify({ date: formatDBDate(selectedDate), hours }),
       });
+      if (res.ok) {
+        fetchOverrides();
+        setSelectedDate(null);
+        setSelectedHours('');
+        // Re-schedule from the overridden date
+        const timezone = getUserTimezone();
+        await fetch('/api/reschedule', { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ start_date: formatDBDate(selectedDate), timezone })
+        });
+      }
+    } finally {
+      setIsUpdatingOverride(false);
     }
   };
 
   const deleteOverride = async (date: string) => {
-    const res = await fetch('/api/availability/overrides', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date }),
-    });
-    if (res.ok) {
-      fetchOverrides();
-      // Re-schedule from the deleted override date
-      const timezone = getUserTimezone();
-      await fetch('/api/reschedule', { 
-        method: 'POST',
+    setIsDeletingOverride(true);
+    try {
+      const res = await fetch('/api/availability/overrides', {
+        method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ start_date: date, timezone })
+        body: JSON.stringify({ date }),
       });
+      if (res.ok) {
+        fetchOverrides();
+        // Re-schedule from the deleted override date
+        const timezone = getUserTimezone();
+        await fetch('/api/reschedule', { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ start_date: date, timezone })
+        });
+      }
+    } finally {
+      setIsDeletingOverride(false);
     }
   };
 
@@ -167,6 +200,7 @@ export default function Availability() {
                 step="0.5"
                 min="0"
                 placeholder="0"
+                disabled={loading}
                 value={availability.find(a => a.dayOfWeek === index)?.hours?.toString() ?? ''}
                 onChange={(e) => {
                   const value = e.target.value;
@@ -190,59 +224,67 @@ export default function Availability() {
           ))}
         </div>
         <div className="mt-4 md:mt-6 text-center">
-          <Button onClick={updateAvailability} className="px-6 md:px-8 w-full md:w-auto">Save Defaults</Button>
+          <Button onClick={updateAvailability} loading={isUpdatingAvailability} disabled={loading || isUpdatingAvailability} className="px-6 md:px-8 w-full md:w-auto">Save Defaults</Button>
         </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
         <div className="flex justify-between items-center mb-4 md:mb-6">
-          <Button variant="outline" size="sm" onClick={prevMonth}>
+          <Button variant="outline" size="sm" onClick={prevMonth} disabled={loading}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <h2 className="text-lg md:text-xl font-semibold">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h2>
-          <Button variant="outline" size="sm" onClick={nextMonth}>
+          <Button variant="outline" size="sm" onClick={nextMonth} disabled={loading}>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 md:gap-2 mb-4">
-          {dayNames.map(day => (
-            <div key={day} className="p-2 md:p-3 text-center font-semibold text-gray-700 bg-gray-50 rounded-md text-sm md:text-base">
-              {day}
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="text-gray-500">Loading availability data...</div>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-7 gap-1 md:gap-2 mb-4">
+              {dayNames.map(day => (
+                <div key={day} className="p-2 md:p-3 text-center font-semibold text-gray-700 bg-gray-50 rounded-md text-sm md:text-base">
+                  {day}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="grid grid-cols-7 gap-1 md:gap-2">
-          {days.map((day, index) => (
-            <div
-              key={index}
-              className={`min-h-[60px] md:min-h-[80px] border rounded-md p-2 md:p-3 transition-colors text-sm md:text-base ${
-                day
-                  ? `cursor-pointer hover:shadow-md ${
-                      getOverrideForDate(day)
-                        ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
-                        : (getAvailabilityForDate(day) || 0) > 0
-                        ? 'bg-green-50 border-green-200 hover:bg-green-100'
-                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                    }`
-                  : 'bg-transparent'
-              }`}
-              onClick={() => day && setSelectedDate(day)}
-            >
-              {day && (
-                <>
-                  <div className="font-semibold text-base md:text-lg mb-1">{day.getDate()}</div>
-                  <div className="text-xs md:text-sm text-gray-600">
-                    {(getAvailabilityForDate(day) || 0)}h
-                  </div>
-                </>
-              )}
+            <div className="grid grid-cols-7 gap-1 md:gap-2">
+              {days.map((day, index) => (
+                <div
+                  key={index}
+                  className={`min-h-[60px] md:min-h-[80px] border rounded-md p-2 md:p-3 transition-colors text-sm md:text-base ${
+                    day
+                      ? `cursor-pointer hover:shadow-md ${
+                          getOverrideForDate(day)
+                            ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                            : (getAvailabilityForDate(day) || 0) > 0
+                            ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                        }`
+                      : 'bg-transparent'
+                  }`}
+                  onClick={() => day && setSelectedDate(day)}
+                >
+                  {day && (
+                    <>
+                      <div className="font-semibold text-base md:text-lg mb-1">{day.getDate()}</div>
+                      <div className="text-xs md:text-sm text-gray-600">
+                        {(getAvailabilityForDate(day) || 0)}h
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </div>
 
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
@@ -270,9 +312,9 @@ export default function Availability() {
           </div>
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setSelectedDate(null)} className="w-full sm:w-auto">Cancel</Button>
-            <Button onClick={updateOverride} className="w-full sm:w-auto">Save</Button>
+            <Button onClick={updateOverride} loading={isUpdatingOverride} disabled={isUpdatingOverride} className="w-full sm:w-auto">Save</Button>
             {selectedDate && getOverrideForDate(selectedDate) && (
-              <Button variant="destructive" onClick={() => deleteOverride(formatDBDate(selectedDate))} className="w-full sm:w-auto">
+              <Button variant="destructive" onClick={() => deleteOverride(formatDBDate(selectedDate))} loading={isDeletingOverride} disabled={isDeletingOverride} className="w-full sm:w-auto">
                 Delete Override
               </Button>
             )}

@@ -10,13 +10,17 @@ import { formatDisplayDate } from '@/lib/utils';
 export default function DailyTasks({ params }: { params: Promise<{ date: string }> }) {
   const { date } = use(params) as { date: string };
   const [subtasks, setSubtasks] = useState<SubtaskMinimal[]>([]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const [updatingSubtasks, setUpdatingSubtasks] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchSubtasks = async () => {
       if (typeof date !== 'string') return;
       const parsedDate = new Date(date);
       if (isNaN(parsedDate.getTime())) return;
+      
+      setLoading(true);
       try {
         const res = await fetch(`/api/daily/${date}`);
         if (!res.ok) throw new Error('Network response was not ok');
@@ -25,6 +29,8 @@ export default function DailyTasks({ params }: { params: Promise<{ date: string 
       } catch (_err) { // eslint-disable-line @typescript-eslint/no-unused-vars
         setSubtasks([]);
         // Optionally log or handle error
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -32,14 +38,23 @@ export default function DailyTasks({ params }: { params: Promise<{ date: string 
   }, [date]);
 
   const handleCheckboxChange = async (subtaskId: string, done: boolean) => {
-    const res = await fetch(`/api/subtasks/${subtaskId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ done: !done }),
-    });
+    setUpdatingSubtasks(prev => new Set(prev).add(subtaskId));
+    try {
+      const res = await fetch(`/api/subtasks/${subtaskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: !done }),
+      });
 
-    if (res.ok) {
-      setSubtasks(subtasks.map(st => st.id === subtaskId ? { ...st, done: !done } : st));
+      if (res.ok) {
+        setSubtasks(subtasks.map(st => st.id === subtaskId ? { ...st, done: !done } : st));
+      }
+    } finally {
+      setUpdatingSubtasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(subtaskId);
+        return newSet;
+      });
     }
   };
 
@@ -70,6 +85,10 @@ export default function DailyTasks({ params }: { params: Promise<{ date: string 
 
       {!isValidDate ? (
         <div className="text-red-500">The provided date is invalid.</div>
+      ) : loading ? (
+        <div className="text-center py-8">
+          <div className="text-gray-500">Loading tasks...</div>
+        </div>
       ) : (
         <div>
           {subtasks.map(subtask => (
@@ -78,6 +97,7 @@ export default function DailyTasks({ params }: { params: Promise<{ date: string 
                 type="checkbox"
                 checked={subtask.done}
                 onChange={() => handleCheckboxChange(subtask.id, subtask.done)}
+                disabled={updatingSubtasks.has(subtask.id)}
                 className="mr-2"
               />
               <Link href={`/projects/${subtask.project.id}`} className={`hover:underline ${subtask.done ? 'line-through' : ''}`}>

@@ -106,7 +106,7 @@ export default function SignUp() {
             </div>
           )}
           <div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" loading={isLoading} disabled={isLoading}>
               {isLoading ? 'Creating account...' : 'Sign Up'}
             </Button>
           </div>

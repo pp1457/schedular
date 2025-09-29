@@ -172,7 +172,7 @@ function Header() {
           </Link>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-black text-white hover:bg-gray-800" disabled={isCreatingTask}>
+              <Button className="bg-black text-white hover:bg-gray-800" loading={isCreatingTask} disabled={isCreatingTask}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Task
               </Button>
@@ -268,7 +268,7 @@ function Header() {
             </Link>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="w-full justify-start bg-black text-white hover:bg-gray-800" disabled={isCreatingTask}>
+                <Button className="w-full justify-start bg-black text-white hover:bg-gray-800" loading={isCreatingTask} disabled={isCreatingTask}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Task
                 </Button>
