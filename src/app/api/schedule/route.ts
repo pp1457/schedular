@@ -210,7 +210,9 @@ export async function POST(request: Request) {
           const totalAvailableMinutes = availableDays.reduce((sum, day) => sum + day.availableMinutes, 0);
           
           if (totalAvailableMinutes < remaining) {
-            // Not enough time available, schedule what we can
+            // Not enough time available within deadline, mark as deadline issue
+            deadlineIssues.push(subtask.id);
+            // Schedule what we can
             remaining = totalAvailableMinutes;
           }
 
@@ -256,6 +258,7 @@ export async function POST(request: Request) {
     }
 
     // Update database
+    const splitSubtasks: string[] = [];
     for (const result of scheduledResults) {
       // Find the subtask from the original collection
       let subtaskToUpdate = null;
@@ -279,6 +282,11 @@ export async function POST(request: Request) {
             scheduledDates 
           },
         });
+
+        // Check if this subtask was split across multiple days
+        if (result.scheduledDates.length > 1) {
+          splitSubtasks.push(result.subtaskId);
+        }
       }
     }
 
@@ -289,7 +297,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       subtasks: updatedProjectSubtasks,
-      splitSubtasks: [],
+      splitSubtasks,
       deadlineIssues
     });
   } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
